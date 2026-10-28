@@ -6,7 +6,7 @@
 <title>Klankenjacht</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@700;800&family=Playwrite+BE+VLG&display=swap" rel="stylesheet">
 <style>
 /* Layout: one full-screen canvas (a paper forest at dusk: the owl on its branch, 6 picture cards on strings and mossy stones); listen button by the owl, sound button top-right; title card on top */
 :root{
@@ -55,21 +55,21 @@ body{background:var(--night);color:var(--ink);overflow:hidden;font-family:var(--
 (() => {
 /* ---------- the words ----------
    Add a word: put it in its sound's list, and add a drawing with the same name to PICS below.
-   say  = how the owl says the sound on its own
+   k    = the letter on the owl's sign (capital, small and school script)
    hold = a sound you can hold ("zingende klank": mmm, sss); these rounds come first, the others join later */
 const SOUNDS=[
-  {k:'m', say:'mmm', hold:true,  words:['maan','muis','mes','melk']},
-  {k:'s', say:'sss', hold:true,  words:['sok','ster','slak','sleutel']},
-  {k:'v', say:'vvv', hold:true,  words:['vis','vos','vlag','voet']},
-  {k:'r', say:'rrr', hold:true,  words:['raket','ring','roos','rups']},
-  {k:'l', say:'lll', hold:true,  words:['lamp','lepel','leeuw','lolly']},
-  {k:'f', say:'fff', hold:true,  words:['fiets','fles','frietjes']},
-  {k:'n', say:'nnn', hold:true,  words:['nest','neus','naald']},
-  {k:'z', say:'zzz', hold:true,  words:['zon','zebra','zaag']},
-  {k:'k', say:'kuh', hold:false, words:['kat','koe','kip','kaas']},
-  {k:'p', say:'puh', hold:false, words:['peer','pan','paraplu','pet']},
-  {k:'t', say:'tuh', hold:false, words:['tent','tomaat','taart']},
-  {k:'b', say:'buh', hold:false, words:['bal','boot','boom','banaan']},
+  {k:'m', hold:true,  words:['maan','muis','mes','melk']},
+  {k:'s', hold:true,  words:['sok','ster','slak','sleutel']},
+  {k:'v', hold:true,  words:['vis','vos','vlag','voet']},
+  {k:'r', hold:true,  words:['raket','ring','roos','rups']},
+  {k:'l', hold:true,  words:['lamp','lepel','leeuw','lolly']},
+  {k:'f', hold:true,  words:['fiets','fles','frietjes']},
+  {k:'n', hold:true,  words:['nest','neus','naald']},
+  {k:'z', hold:true,  words:['zon','zebra','zaag']},
+  {k:'k', hold:false, words:['kat','koe','kip','kaas']},
+  {k:'p', hold:false, words:['peer','pan','paraplu','pet']},
+  {k:'t', hold:false, words:['tent','tomaat','taart']},
+  {k:'b', hold:false, words:['bal','boot','boom','banaan']},
 ];
 const HOLD_ROUNDS=8;                                     // rounds with only holdable sounds before k, p, t, b join
 const LOOKALIKE={v:'f',f:'v',s:'z',z:'s',p:'b',b:'p'};  // sounds that are too close to mix in one round
@@ -238,7 +238,8 @@ const PICS={
 /* ---------- layout ---------- */
 // O is the owl size; the cards sit in a grid next to (landscape) or below (portrait) the owl.
 let W=0,H=0,DPR=1,O=100,ox=0,oy=0,branchY=0,trunkW=30,bx=0,bTop=0,BW=60,BH=40;
-let cols=3,rows=2,gx0=0,gy0=0,cellW=0,cellH=0,S=100,twigY=0,portrait=false;
+let cols=3,rows=2,gx0=0,gy0=0,cellW=0,cellH=0,S=100,twigY=0,portrait=false,zw=0;
+let signX=0,signY=0,signW=0,signH=0;
 let scene=null, grain=null;
 function resize(){
   DPR=Math.min(2,window.devicePixelRatio||1);
@@ -247,11 +248,11 @@ function resize(){
   portrait=W<H*1.05;
   let gw,gh;
   if(!portrait){
-    const zw=W*0.36;
+    zw=W*0.36;
     O=Math.min(zw*0.42,H*0.27); ox=zw*0.47; oy=H*0.42;
     gx0=zw; gy0=Math.max(80,H*0.1); gw=W-zw-14; gh=H-gy0-12;
   } else {
-    const zh=H*0.36;
+    const zh=H*0.39;
     O=Math.min(W*0.3,zh*0.46); ox=W*0.38; oy=Math.max(zh*0.5,O*0.66+12);
     gx0=12; gy0=zh; gw=W-24; gh=H-zh-12;
   }
@@ -261,11 +262,15 @@ function resize(){
   S=Math.min(best,230); cellW=gw/cols; cellH=gh/rows; twigY=gy0+cellH*0.05;
   branchY=oy+O*0.44; trunkW=Math.max(26,O*0.32);
   BW=O*0.62; BH=O*0.36; bx=ox+O*0.82; bTop=branchY-BH*0.9;
-  // the "listen again" button: under the owl in landscape, at the right of the basket in portrait
-  const lx=portrait?W-54:ox, ly=portrait?branchY-O*0.1:Math.min(H-54,branchY+O*0.85);
+  // the letter sign hangs under the owl's branch (in portrait: in the gap above the cards)
+  signY=branchY+O*0.14;
+  signH=portrait?clamp(twigY-signY-14,44,O*0.75):Math.min(O*0.7,zw*0.9/2.7);
+  signW=signH*2.7; signX=clamp(ox,signW/2+8,W-signW/2-8);
+  // the "listen again" button: under the sign in landscape, at the right of the basket in portrait
+  const lx=portrait?W-54:ox, ly=portrait?branchY-O*0.1:Math.min(H-54,signY+signH+54);
   listenBtn.style.left=lx+'px'; listenBtn.style.top=ly+'px';
   if(!grain) grain=makeGrain();
-  buildScene(); buildLeaves();
+  buildScene(); buildLeaves(); signImg=cur?makeSign():null;
   for(const k of cards){ layoutCard(k); k.img=cardImg(k); }
   for(const k of basket.items) k.img=cardImg(k);
 }
@@ -578,9 +583,6 @@ function unlockSpeech(){
   try{ SS.cancel(); const u=utter(' '); u.volume=0; SS.speak(u); }catch(e){}
 }
 ['touchend','click','keydown'].forEach(ev=>document.addEventListener(ev,unlockSpeech,{passive:true,capture:true}));
-const SOUND_OF={}; for(const s of SOUNDS) for(const w of s.words) SOUND_OF[w]=s;
-// "mmmaan" for sounds you can hold, "kuh, kuh, kat" for the others
-const stretch=(w,s)=>s.hold?s.say+w.slice(1):s.say+', '+s.say+', '+w;
 
 /* ---------- game logic ---------- */
 let started=false, t=0, phase='title', pt=0, round=0, bag=[], cur=null, example='', cards=[], need=0, found=0, focusI=-1, cricketT=3;
@@ -597,9 +599,10 @@ function newRound(){
   const bgs=shuffle(CARD_BG.slice());
   cards=shuffle(own.slice(0,n).map(w=>({word:w,ok:true})).concat(others.map(w=>({word:w,ok:false}))))
     .map((o,i)=>{ const k=Object.assign(o,{i,bg:bgs[i],st:'in',t:-0.15-i*0.09,wig:0,ph:rand(0,P)}); layoutCard(k); k.img=cardImg(k); return k; });
-  need=n; found=0; basket.items=[]; phase='enter'; pt=0;
+  need=n; found=0; basket.items=[]; phase='enter'; pt=0; signT=0; signImg=makeSign();
 }
-function intro(){ say('Ik zoek woorden met '+cur.say+'... zoals '+stretch(example,cur)+'!',0.9); }
+// speech engines can't say a sound on its own ("mmm" comes out as letter names), so the owl uses a whole example word
+function intro(){ signBump=0.6; say('Ik zoek woorden die beginnen zoals '+example+'... '+example+'!',0.85); }
 function repeat(){ if(phase==='play'||phase==='enter'){ owl.hoot=0.35; intro(); } }
 function start(){
   if(started) return; started=true; titleEl.classList.add('gone'); ac(); startAmb();
@@ -613,7 +616,7 @@ function tapCard(k){
     say(k.word+'!'); sparkles(k.x,k.y,8,0.7);
   } else {
     k.wig=0.9; owl.tilt=1; SFX.wobble(); leafPuff(k.x,k.y-S*0.4,3);
-    const s=SOUND_OF[k.word]; say(stretch(k.word,s)+'... begint met '+s.say,0.8);
+    say(k.word+'... nee, dat begint niet zoals '+example+'.',0.85);
   }
 }
 const FLY=0.9;
@@ -633,7 +636,7 @@ function update(dt){
   t+=dt; pt+=dt;
   owl.blink-=dt; if(owl.blink<0) owl.blink=rand(2.5,5);
   owl.talk=Math.max(0,owl.talk-dt); owl.hoot=Math.max(0,owl.hoot-dt); owl.tilt=Math.max(0,owl.tilt-dt*1.2); owl.dance=Math.max(0,owl.dance-dt);
-  basket.bump=Math.max(0,basket.bump-dt);
+  basket.bump=Math.max(0,basket.bump-dt); signT+=dt; signBump=Math.max(0,signBump-dt);
   listenBtn.classList.toggle('busy',owl.talk>0&&phase!=='dance');
   for(const k of cards){
     const was=k.t; k.t+=dt; k.wig=Math.max(0,k.wig-dt);
@@ -670,15 +673,41 @@ function drawCards(flying){
     drawCardImg(k,p.x,p.y,p.rot,p.sc,p.al);
   }
 }
-// fallback without a Dutch voice: the owl shows the letter in a paper speech bubble
-function drawLetter(){
-  if(voice||!cur||phase==='title') return;
-  const r=O*0.3, x=Math.max(r+8,ox-O*0.92), y=oy-O*0.3;
-  g=c; paperShadow(8,3);
-  sh(()=>{ c.arc(x,y,r,0,P); c.moveTo(x+r*0.7,y+r*0.5); c.lineTo(x+r*1.35,y+r*0.35); c.lineTo(x+r*0.85,y+r*0.15); },'#fbf3e2');
-  noShadow();
-  c.fillStyle='#3a2a4a'; c.font='800 '+Math.round(r*1.3)+'px "Baloo 2","Comic Sans MS",system-ui,sans-serif'; c.textAlign='center'; c.textBaseline='middle';
-  c.fillText(cur.k,x,y+r*0.08);
+/* ---------- letter sign ----------
+   capital, small letter and the script letter children learn to write in Flemish schools (Playwrite BE VLG) */
+const SCRIPT='"Playwrite BE VLG",cursive', ROUND='"Baloo 2","Comic Sans MS",system-ui,sans-serif';
+let signImg=null, signT=9, signBump=0;
+function makeSign(){
+  const pad=12, cg=document.createElement('canvas'); cg.width=Math.ceil((signW+pad*2)*DPR); cg.height=Math.ceil((signH+pad*2)*DPR);
+  g=cg.getContext('2d'); g.scale(DPR,DPR); g.translate(pad,pad);
+  paperShadow(10,4);
+  g.fillStyle='#fbf3e2'; tornPath([0,0,signW,0,signW,signH,0,signH],signH*0.12,signH*0.012); g.fill();
+  noShadow(); g.save(); g.clip(); g.fillStyle=grain; g.fillRect(0,0,signW,signH); g.restore();
+  // school writing lines behind the script letter
+  const lx=signW*0.68, lw=signW*0.28, base=signH*0.6, xh=signH*0.17;
+  g.strokeStyle='rgba(61,127,214,0.35)'; g.lineWidth=Math.max(1,signH*0.012);
+  for(const y of [base-xh*2,base-xh,base,base+xh]){ g.beginPath(); g.moveTo(lx,y); g.lineTo(lx+lw,y); g.stroke(); }
+  g.textAlign='center'; g.textBaseline='alphabetic';
+  g.fillStyle='#3a2a4a'; g.font='800 '+Math.round(signH*0.7)+'px '+ROUND;
+  g.fillText(cur.k.toUpperCase(),signW*0.18,signH*0.74); g.fillText(cur.k,signW*0.45,signH*0.74);
+  g.fillStyle='#2d5fa8'; g.font='400 '+Math.round(xh*3.3)+'px '+SCRIPT;
+  g.fillText(cur.k,lx+lw/2,base);
+  g=c; return cg;
+}
+// the script font may arrive after the first sign was drawn: redraw it then
+if(document.fonts&&document.fonts.load) Promise.all([document.fonts.load('400 40px "Playwrite BE VLG"'),document.fonts.load('800 40px "Baloo 2"')]).then(()=>{ if(cur) signImg=makeSign(); }).catch(()=>{});
+function drawSign(){
+  if(!signImg||phase==='title') return;
+  const e=clamp(signT/0.5,0,1), b=e-1, sy=RM?1:1+2.7*b*b*b+1.7*b*b;
+  const pop=1+Math.sin(Math.min(1,signBump/0.6)*Math.PI)*(RM?0.02:0.07);
+  const rot=RM?0:Math.sin(t*1.1)*0.025;
+  c.save(); c.translate(signX,branchY); c.rotate(rot);
+  // two strings from the branch
+  c.strokeStyle='#e8dcc0'; c.lineWidth=2;
+  for(const m of [-1,1]){ c.beginPath(); c.moveTo(m*signW*0.32,0); c.lineTo(m*signW*0.32,(signY-branchY)+signH*0.08*sy); c.stroke(); }
+  c.translate(0,signY-branchY); c.scale(pop,sy*pop);
+  const pad=12; c.drawImage(signImg,-signW/2-pad,-pad,signW+pad*2,signH+pad*2);
+  c.restore();
 }
 function drawFocus(){
   if(focusI<0||!cards[focusI]) return;
@@ -692,9 +721,9 @@ function draw(){
   c.setTransform(DPR,0,0,DPR,0,0); g=c;
   for(const l of leaves) drawLeaf(l);
   drawCards(false);
+  drawSign();
   drawBasket();
   drawOwl();
-  drawLetter();
   drawCards(true);
   drawFocus();
   drawParts();
@@ -704,7 +733,8 @@ function draw(){
 cv.addEventListener('pointerdown',e=>{
   if(!started){ start(); return; }
   const x=e.clientX, y=e.clientY;
-  if(Math.hypot(x-ox,y-oy)<O*0.55){ repeat(); return; } // tapping the owl repeats the sound
+  // tapping the owl or the letter sign repeats the sound
+  if(Math.hypot(x-ox,y-oy)<O*0.55||(Math.abs(x-signX)<signW*0.55&&y>signY-10&&y<signY+signH+10)){ repeat(); return; }
   let best=null, bd=1e9;
   for(const k of cards){ if(k.st!=='idle'&&k.st!=='in') continue;
     const dx=Math.abs(x-k.x), dy=Math.abs(y-k.y); if(dx<S*0.62&&dy<S*0.62&&dx+dy<bd){ bd=dx+dy; best=k; } }
