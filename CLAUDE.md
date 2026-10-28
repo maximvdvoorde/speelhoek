@@ -47,6 +47,8 @@ function ac(){
 ['touchend','click'].forEach(ev=>document.addEventListener(ev,()=>ac(),{passive:true}));
 ```
 
+**Zoom:** the hub blocks pinch and double-tap zoom, in itself and inside each game's iframe (Safari `gesture*` events, multi-touch `touchmove`), and snaps back to 100% if a zoom slips through. iOS ignores `user-scalable=no`, so without this, kids zoom in by accident and the games' `touch-action:none` stops them from pinching back out. Games don't need their own code for this; keep `touch-action:none` (or `manipulation`) on the play area, and never use two-finger gestures.
+
 Every game has a sound on/off button (top-right, 60 px round). Route all sounds through one master gain node, so the button also silences looping sounds (music, hum), and turn the master down on `visibilitychange` when the page is hidden. Start background loops on the first input (title card tap), not on page load.
 
 ## Design rules for a 5-year-old
