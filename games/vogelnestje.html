@@ -252,6 +252,10 @@ let twigs=[], nestN=0, nestShown=0, sticks=[], rimSticks=[], nestBounce=0;
 let eggs=[], eggsReady=0, warm=0, hatched=0, chicks=[];
 let worms=[], carry=null, movers=[], parts=[], flown=0;
 let heartT=0, peepT=2, ambT=3, rustleCD=0, tikT=0, lastChirp=0;
+// Touch is a lot easier than a mouse, so with touch: the bird only flies while the finger is down,
+// only one worm peeks out at a time (somewhere else each time), and there are fewer twigs, further away
+let touchMode=false, nextWormT=0, lastHill=-1;
+const WORM_STAY=4.5; // touch: an uncaught worm ducks away after this long and pops up at another molehill
 const keys={left:false,right:false,up:false,down:false};
 
 function newRound(first){
@@ -259,7 +263,7 @@ function newRound(first){
   layout();
   phase='twigs'; phT=0; nestN=0; nestShown=0; sticks=[]; rimSticks=[]; eggs=[]; chicks=[]; warm=0; hatched=0; carry=null; movers=[];
   twigs=[]; worms=HILLS.map(()=>({state:'in',timer:0,out:0}));
-  for(let i=0;i<3;i++) spawnTwig(first?0.2+i*0.25:1.4+i*0.25);
+  for(let i=0;i<(touchMode?2:3);i++) spawnTwig(first?0.2+i*0.25:1.4+i*0.25);
 }
 function twigPos(tw){ return tw.bush!=null?[bushPos(tw.bush),groundY-B*0.95]:[sideX(tw.u),groundY+B*0.38]; } // ground twigs lie in the grass in front of the molehills
 function spawnTwig(delay){
@@ -268,7 +272,7 @@ function spawnTwig(delay){
     const tw=Math.random()<0.3?{bush:Math.floor(Math.random()*BUSHES.length)}:{u:rand(0.08,0.92)};
     if(tw.u!=null&&Math.abs(tw.u-0.8)<0.07) continue;
     const [x,y]=twigPos(tw);    if(twigs.some(o=>{ const [ox,oy]=twigPos(o); return dist(x,y,ox,oy)<B*1.6; })) continue;
-    if(dist(x,y,bird.x,bird.y)<B*1.6) continue;
+    if(dist(x,y,bird.x,bird.y)<B*(touchMode?3.5:1.6)) continue;
     best=tw; break;
   }
   if(!best) best={u:rand(0.08,0.7)};
@@ -555,6 +559,7 @@ const SFX={
   whoosh(){ noise(0,0.45,0.13,500,2200); },
   pling(){ tone(1319,0,0.3,'triangle',0.12); tone(1976,0.08,0.4,'triangle',0.09); },
   rustle(){ noise(0,0.25,0.07,4200,2400); },
+  giggle(){ [0,0.09,0.18].forEach((s,i)=>tone(900-i*80,s,0.07,'triangle',0.08,1200-i*80)); tone(500,0.3,0.15,'sine',0.08,200); },
   night(){ [784,659,523].forEach((f,i)=>tone(f,i*0.35,0.5,'sine',0.08)); },
 };
 
@@ -567,7 +572,7 @@ function pickUp(){
     for(let i=0;i<twigs.length;i++){ const tw=twigs[i]; if(t<tw.t0+0.15) continue; const [x,y]=twigPos(tw);
       if(near(x,y,B*0.95)){
         twigs.splice(i,1); carry={k:'twig'}; SFX.snap(); bird.sing=0.25; sparkles(x,y,6,0.6);
-        if(twigs.length<Math.min(3,twigsLeft())) spawnTwig(0.8);
+        if(twigs.length<Math.min(touchMode?2:3,twigsLeft())) spawnTwig(0.8);
         return;
       } }
   } else if(phase==='feed'){
@@ -642,7 +647,7 @@ function update(dt){
   if(started){ pickUp(); deliver(); }
   if(carry&&carry.k==='worm'&&carry.pull<0.35){
     carry.pull+=dt;
-    if(carry.pull>=0.35){ const w=worms[carry.hill]; w.state='in'; w.out=0; w.timer=1.4; SFX.plop(); puff(hillPos(carry.hill),groundY-B*0.12,8,season===3?'#fff':'#8a5a3a'); }
+    if(carry.pull>=0.35){ const w=worms[carry.hill]; w.state='in'; w.out=0; w.timer=1.4; nextWormT=0.9; SFX.plop(); puff(hillPos(carry.hill),groundY-B*0.12,8,season===3?'#fff':'#8a5a3a'); }
   }
   for(const m of movers){ m.t+=dt; if(m.t>=m.dur&&!m.done){ m.done=true; landMover(m); } }
   movers=movers.filter(m=>!m.done);
@@ -664,14 +669,29 @@ function update(dt){
     while(hatched<EGGS&&warm*EGGS>=hatched+1-1e-6){ crackEgg(eggs.findIndex(e=>e.ord===hatched)); hatched++; }
     if(hatched>=EGGS){ phase='hatched'; phT=0; target.y=Math.min(target.y,ny-B*1.6); }
   }
-  if(phase==='hatched'&&phT>1.2){ phase='feed'; phT=0; worms.forEach((w,i)=>{ w.state='in'; w.timer=0.2+i*0.5; w.out=0; }); }
+  if(phase==='hatched'&&phT>1.2){ phase='feed'; phT=0; nextWormT=0.3; lastHill=-1; worms.forEach((w,i)=>{ w.state='in'; w.timer=0.2+i*0.5; w.out=0; }); }
   if(phase==='feed'){
-    for(const w of worms){
+    if(touchMode){
+      // one worm at a time, never twice in a row at the same molehill
+      const ups=worms.filter(w=>w.state==='up');
+      ups.slice(1).forEach(w=>{ w.state='hiding'; }); // just switched from mouse to touch
+      if(!worms.some(w=>w.state!=='in')){
+        nextWormT-=dt;
+        if(nextWormT<=0){
+          const free=worms.map((w,i)=>i).filter(i=>i!==lastHill), i=free[Math.floor(Math.random()*free.length)];
+          worms[i].state='up'; worms[i].upT=0; lastHill=i; SFX.pop();
+        }
+      }
+      for(const w of worms){
+        if(w.state==='up'){ w.out=Math.min(1,w.out+dt*2.5); w.upT=(w.upT||0)+dt; if(w.upT>WORM_STAY){ w.state='hiding'; SFX.giggle(); } }
+        else if(w.state==='hiding'){ w.out=Math.max(0,w.out-dt*3); if(w.out<=0){ w.state='in'; nextWormT=0.5; } }
+      }
+    } else for(const w of worms){
       if(w.state==='in'){ w.timer-=dt; if(w.timer<=0){ w.state='up'; SFX.pop(); } }
-      else if(w.state==='up') w.out=Math.min(1,w.out+dt*2.5);
+      else if(w.state==='up'||w.state==='hiding'){ w.state='up'; w.out=Math.min(1,w.out+dt*2.5); }
     }
     peepT-=dt; if(peepT<=0){ peepT=rand(1.4,2.6); if(chicks.some(ch=>!ch.full)) SFX.peep(); }
-  } else for(const w of worms) if(w.state==='up'){ w.out=Math.max(0,w.out-dt*2); if(w.out<=0) w.state='in'; } // back into the ground
+  } else for(const w of worms) if(w.state==='up'||w.state==='hiding'){ w.out=Math.max(0,w.out-dt*2); if(w.out<=0) w.state='in'; } // back into the ground
   for(const ch of chicks){
     ch.gulp=Math.max(0,ch.gulp-dt*2);
     const want=phase==='feed'&&!ch.full&&carry&&carry.k==='worm'?1:0;
@@ -766,6 +786,7 @@ function draw(){
 /* ---------- input ---------- */
 function aim(x,y){ target.x=clamp(x,minX(),maxX()); target.y=clamp(y,minY(),maxY()); }
 cv.addEventListener('pointerdown',e=>{
+  touchMode=e.pointerType!=='mouse';
   if(!started){ start(); return; }
   aim(e.clientX,e.clientY);
   parts.push({k:'ring',x:e.clientX,y:e.clientY,life:0,max:0.5});
@@ -773,6 +794,14 @@ cv.addEventListener('pointerdown',e=>{
   try{ cv.setPointerCapture(e.pointerId); }catch(err){}
 });
 cv.addEventListener('pointermove',e=>{ if(started&&(e.pointerType==='mouse'||e.buttons||e.pressure>0)) aim(e.clientX,e.clientY); });
+// touch: lifting the finger makes the bird stop, so a quick tap only nudges it one hop towards the finger
+function lift(e){
+  if(!started||e.pointerType==='mouse') return;
+  const dx=target.x-bird.x, dy=target.y-bird.y, k=Math.min(1,B*1.2/Math.max(1,Math.hypot(dx,dy)));
+  aim(bird.x+dx*k,bird.y+dy*k);
+}
+cv.addEventListener('pointerup',lift);
+cv.addEventListener('pointercancel',lift);
 const KEYMAP={arrowleft:'left',a:'left',arrowright:'right',d:'right',arrowup:'up',w:'up',arrowdown:'down',s:'down'};
 addEventListener('keydown',e=>{
   const k=e.key.toLowerCase(), dir=KEYMAP[k];
