@@ -72,8 +72,8 @@ const SOUNDS=[
   {k:'b', hold:false, words:['bal','boot','boom','banaan']},
 ];
 // How the voice should say a word, only for words it gets wrong (the card and the sign keep the real spelling).
-// A doubled vowel often helps: 'naaald' makes the voice hold the long aa.
-const SAY={naald:'naaald'};
+// A doubled vowel often helps, for example {naald:'naaald'} makes the voice hold the long aa.
+const SAY={};
 const HOLD_ROUNDS=8;                                     // rounds with only holdable sounds before k, p, t, b join
 const LOOKALIKE={v:'f',f:'v',s:'z',z:'s',p:'b',b:'p'};  // sounds that are too close to mix in one round
 
@@ -121,7 +121,9 @@ const PICS={
     sh(E_(0.08,0.1,0.3,0.2),'#9aa0ab'); sh(Y_([-0.44,0.14,-0.08,-0.08,-0.02,0.28]),'#9aa0ab');
     sh(O_(-0.08,-0.1,0.13),'#9aa0ab'); sh(O_(-0.08,-0.1,0.08),'#f3a6b8');
     sh(O_(-0.44,0.14,0.045),'#f37f9a'); eye(-0.24,0.06,0.035); sh(E_(0.12,0.3,0.06,0.03),'#80868f'); sh(E_(-0.08,0.3,0.06,0.03),'#80868f'); },
-  mes(){ g.rotate(-0.7); sh(Y_([-0.07,0.1,-0.07,-0.3,0,-0.46,0.08,-0.28,0.08,0.1]),'#cfd6de'); sh(R_(-0.04,-0.32,0.03,0.38,0.015),'#eef2f6');
+  mes(){ g.rotate(-0.7); // a round-tipped butter knife
+    sh(()=>{ g.moveTo(-0.07,0.1); g.lineTo(-0.07,-0.3); g.quadraticCurveTo(-0.07,-0.47,0.02,-0.47); g.quadraticCurveTo(0.09,-0.46,0.085,-0.3); g.lineTo(0.07,0.1); g.closePath(); },'#cfd6de');
+    sh(R_(-0.04,-0.34,0.03,0.4,0.015),'#eef2f6');
     sh(R_(-0.08,0.06,0.17,0.4,0.06),'#8a5a3c'); sh(O_(0.005,0.17,0.025),'#d8c39a'); sh(O_(0.005,0.33,0.025),'#d8c39a'); },
   melk(){ sh(R_(-0.06,-0.47,0.13,0.09,0.02),'#f4f6fb'); sh(Y_([-0.22,-0.15,-0.12,-0.38,0.12,-0.38,0.22,-0.15]),'#dfe8f5');
     sh(R_(-0.22,-0.16,0.44,0.62,0.03),'#ffffff'); sh(R_(-0.22,0.04,0.44,0.22),'#3d7fd6');
@@ -145,9 +147,11 @@ const PICS={
     const st=['#2a2a2a','#ffd23f','#e8393d'], wv=x=>Math.sin(x*7)*0.04;
     for(let i=0;i<3;i++){ const x0=-0.33+i*0.25, x1=x0+0.25;
       sh(()=>{ g.moveTo(x0,-0.38+wv(x0)); g.lineTo(x1,-0.38+wv(x1)); g.lineTo(x1,0.06+wv(x1)); g.lineTo(x0,0.06+wv(x0)); g.closePath(); },st[i]); } },
-  voet(){ g.rotate(0.15); sh(()=>{ g.ellipse(0,0.1,0.21,0.3,0,0,P); },'#f5c5a0'); sh(E_(-0.04,-0.14,0.2,0.16),'#f5c5a0');
-    for(const [x,y,r] of [[-0.14,-0.36,0.085],[0.0,-0.38,0.065],[0.1,-0.35,0.055],[0.18,-0.29,0.047],[0.23,-0.2,0.04]]) sh(O_(x,y,r),'#f5c5a0');
-    sh(E_(0.02,0.18,0.1,0.14),'#eab08a'); },
+  voet(){ g.translate(0,0.07); g.scale(1.12,1.12); // a bare foot seen from the side: ankle, heel, sole and a row of toes with nails
+    sh(()=>{ g.moveTo(-0.2,-0.46); g.lineTo(0.03,-0.46); g.lineTo(0.05,-0.12); g.quadraticCurveTo(0.12,0.0,0.34,0.1); g.quadraticCurveTo(0.47,0.16,0.45,0.24);
+      g.quadraticCurveTo(0.43,0.31,0.32,0.31); g.lineTo(-0.16,0.31); g.quadraticCurveTo(-0.33,0.31,-0.31,0.13); g.quadraticCurveTo(-0.27,-0.02,-0.2,-0.12); g.closePath(); },'#f5c5a0');
+    sh(E_(-0.06,-0.08,0.05,0.04),'#eab08a');
+    for(const [x,y,r] of [[0.19,0.02,0.05],[0.26,0.055,0.055],[0.32,0.09,0.06],[0.39,0.15,0.08]]){ sh(O_(x,y,r),'#f5c5a0'); sh(E_(x+r*0.35,y-r*0.3,r*0.42,r*0.3,0.5),'#fbe3d0'); } },
   raket(){ g.rotate(0.55); sh(Y_([-0.1,0.3,0,0.52,0.1,0.3]),'#ff9a3a'); sh(Y_([-0.05,0.3,0,0.42,0.05,0.3]),'#ffe27a');
     sh(Y_([-0.14,0.0,-0.3,0.3,-0.12,0.28]),'#e8393d'); sh(Y_([0.14,0.0,0.3,0.3,0.12,0.28]),'#e8393d');
     sh(E_(0,-0.02,0.16,0.38),'#f4f1ea'); g.save(); g.beginPath(); g.ellipse(0,-0.02,0.16,0.38,0,0,P); g.clip(); sh(R_(-0.2,-0.45,0.4,0.16),'#e8393d'); g.restore();
@@ -214,8 +218,8 @@ const PICS={
   pan(){ sh(R_(0.14,-0.045,0.36,0.09,0.045),'#5a3a2a'); sh(O_(-0.12,0,0.32),'#3a3a4a'); sh(O_(-0.12,0,0.25),'#5a5f6e'); sh(E_(-0.2,-0.1,0.06,0.03,-0.6),'#7a8090'); },
   paraplu(){ ln('#3a3a4a',0.04,[0,-0.42,0,0.3]); ring('#3a3a4a',0.04,-0.07,0.3,0.07,0,Math.PI);
     sh(()=>{ g.arc(0,0,0.44,Math.PI,0); for(let i=0;i<4;i++){ const cx=0.33-i*0.22; g.arc(cx,0,0.11,0,Math.PI,true); } },'#4fb3ff');
-    g.save(); g.beginPath(); g.arc(0,0,0.44,Math.PI,0); g.clip(); sh(Y_([0,-0.46,-0.22,0,0,0]),'#e8393d'); sh(Y_([0,-0.46,0.44,-0.05,0.44,0]),'#e8393d'); g.restore();
-    sh(O_(0,-0.45,0.035),'#3a3a4a'); },
+    noShadow(); for(const m of [-1,1]){ g.strokeStyle='#2f8ad6'; g.lineWidth=0.02; g.beginPath(); g.moveTo(0,-0.43); g.quadraticCurveTo(m*0.16,-0.3,m*0.22,0); g.stroke(); }
+    paperShadow(4,2,0.35); sh(O_(0,-0.45,0.035),'#3a3a4a'); },
   pet(){ sh(E_(0.24,0.12,0.26,0.08),'#2d5fa8'); sh(()=>{ g.arc(0,0.12,0.32,Math.PI,0); g.closePath(); },'#3d7fd6');
     ln('#2d5fa8',0.02,[0,-0.19,0,0.12]); sh(R_(-0.32,0.06,0.64,0.07,0.03),'#ff7a59'); sh(O_(0,-0.2,0.045),'#ffd23f'); },
   tent(){ ln('#7a5228',0.03,[0,-0.38,0,-0.48]); sh(Y_([0,-0.48,0.14,-0.44,0,-0.4]),'#ffd23f');
@@ -606,7 +610,7 @@ function newRound(){
 }
 // speech engines can't say a sound on its own ("mmm" comes out as letter names), so the owl uses a whole example word
 const spoken=w=>SAY[w]||w;
-function intro(){ signBump=0.6; say('Ik zoek woorden die beginnen zoals '+spoken(example)+'... '+spoken(example)+'!',0.85); }
+function intro(){ signBump=0.6; say('Ik zoek woorden die beginnen zoals '+spoken(example)+'!',0.85); }
 function repeat(){ if(phase==='play'||phase==='enter'){ owl.hoot=0.35; intro(); } }
 function start(){
   if(started) return; started=true; titleEl.classList.add('gone'); ac(); startAmb();
