@@ -14,7 +14,7 @@ Small browser games for the kids, bundled in one menu page.
   - `meteorietenregen.html` – a rocket hops between 3 lanes on a tilted space plane, dodging meteorites and catching stars
   - `eendjes-vissen.html` – kermis duck fishing: hook rubber ducks, flip them over, and fill the prize shelves
   - `plasticsoep-opruimer.html` – a yellow submarine-garbage-truck swims up with each tap and gobbles up floating plastic with its mechanical mouth; the sea turns clear blue and fills with fish and coral as the count rises
-  - `fruit-fabriek.html` – counting game: tap to drop fruit from a machine into the box on the conveyor belt until it matches the number, then press the green button (Dutch counting voice)
+  - `fruit-fabriek.html` – counting game: tap to drop fruit from a machine into the box on the conveyor belt until it matches the number, then press the green button (Dutch counting voice); after a run of right boxes, small sums and subtractions (up to 10) appear on the boxes
 - `hub/speelhoek.template.html` – the menu page; `__FONT_CSS__` and `__GAMES__` are replaced by the build
 - `hub/build.py` – bundles every game (plus covers and embedded fonts) into the web app in `site/`
 - `hub/covers.js` – takes a cover screenshot of each game (needs Node + Playwright: `npm install`)

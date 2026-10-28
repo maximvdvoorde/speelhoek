@@ -13,7 +13,7 @@ const jobs=[
  ['fruit',path.join(ROOT,'games/fruit-fabriek.html'),'.title,.hud{display:none!important}',2000,
   async p=>{ // start, then fill the box with as many fruits as its number (read from the canvas label), up to 4
     await p.mouse.click(520,90);
-    const n=Math.min(4,Number(((await p.getAttribute('#game','aria-label')).match(/staat (\d+)/)||[])[1]||3));
+    const n=Math.min(4,Number(((await p.getAttribute('#game','aria-label')).match(/\((\d+)\)\./)||[])[1]||3));
     for(let i=0;i<n;i++){ await p.mouse.click(520,90); await p.waitForTimeout(200); }
     await p.waitForTimeout(500); }],
 ];

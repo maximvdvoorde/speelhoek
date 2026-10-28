@@ -252,14 +252,25 @@ let started=false, t=0, phase='in', phaseT=0, beltPos=0, beltMoving=false;
 let box=null, oldBox=null, leaving=[], parts=[], pops=[], trophies=[], flyT=null;
 let help=null, sinceChange=0, kick=0, flash=0, shake=0, pendingDone=false;
 const face={mood:'idle',t:0,blink:2,lx:0,ly:0};
-// difficulty: numbers 1..maxN; clean boxes raise it, struggling lowers it
-let maxN=5, streak=0, struggle=0, wrongs=0, prevN=0;
-function pickTarget(){
-  let n;
-  do{ n=(maxN>5&&Math.random()<0.45)?maxN-Math.floor(Math.random()*2):1+Math.floor(Math.random()*maxN); }while(n===prevN);
-  prevN=n; return n;
+// difficulty ladder: [highest plain number, highest sum, highest number to subtract from] (0 = not yet)
+// three clean boxes in a row climb one step, struggling drifts one step down
+const LEVELS=[[3,0,0],[4,0,0],[5,0,0],[6,0,0],[7,0,0],[7,5,0],[8,7,0],[9,10,0],[10,10,5],[10,10,10]];
+let lvl=2, streak=0, struggle=0, wrongs=0, prevN=0;
+const ri=(a,b)=>a+Math.floor(Math.random()*(b-a+1));
+// the box asks for n fruits, shown as n, a+b or a-b
+function newBox(){
+  const [maxN,maxSum,maxSub]=LEVELS[lvl];
+  let n,a=0,b=0,op='';
+  do{
+    const r=Math.random();
+    if(maxSub&&r<0.3){ op='-'; a=ri(2,maxSub); b=ri(1,a-1); n=a-b; }
+    else if(maxSum&&r<0.6){ op='+'; n=ri(2,maxSum); a=ri(1,n-1); b=n-a; }
+    else { op=''; n=(maxN>5&&Math.random()<0.45)?maxN-ri(0,1):ri(1,maxN); }
+  }while(n===prevN);
+  prevN=n;
+  return {u:0,n,a,b,op,fruits:[],bump:0,closeT:-1,lastKind:''};
 }
-function newBox(){ return {u:0,n:pickTarget(),fruits:[],bump:0,closeT:-1,lastKind:''}; }
+const boxWords=b=>b.op?WORDS[b.a]+(b.op==='+'?' plus ':' min ')+WORDS[b.b]:WORDS[b.n];
 box=newBox();
 
 function setMood(m,dur){ face.mood=m; face.t=dur||0; }
@@ -278,7 +289,7 @@ function puff(x,y){ parts.push({k:'puff',x,y,vx:rand(-10,10),vy:-F*0.9,r:F*0.16,
 
 function start(){
   if(started) return; started=true; titleEl.classList.add('gone'); ac(); startHum();
-  if(phase==='wait') say(WORDS[box.n]); else unlockSpeech();
+  if(phase==='wait') say(boxWords(box)); else unlockSpeech();
 }
 function landed(){ return box.fruits.filter(f=>f.landed).length; }
 function dropFruit(){
@@ -319,12 +330,14 @@ function check(){
   const n=box.fruits.length;
   if(n===box.n){
     phase='close'; phaseT=0; help=null; setMood('joy');
-    if(wrongs===0){ streak++; struggle=0; if(streak>=3&&maxN<10){ maxN++; streak=0; } }
-    else { streak=0; if(wrongs>=2){ struggle++; if(struggle>=2&&maxN>3){ maxN--; struggle=0; } } }
+    if(wrongs===0){ streak++; struggle=0; if(streak>=3&&lvl<LEVELS.length-1){ lvl++; streak=0; } }
+    else { streak=0; if(wrongs>=2){ struggle++; if(struggle>=2&&lvl>0){ lvl--; struggle=0; } } }
   } else {
     wrongs++;
-    help={kind:n>box.n?'many':'few',n,t:0};
+    const h=help={kind:n>box.n?'many':'few',n,t:0};
     setMood('hmm'); SFX.hmm();
+    // after the "hmm?", read the box out loud again (unless the player already changed something)
+    setTimeout(()=>{ if(help===h) say(boxWords(box)); },800);
   }
 }
 function idleTap(x,y){ flash=Math.max(flash,0.3); SFX.tick(); if(x!==undefined) sparkles(x,y,4,0.4); }
@@ -350,11 +363,11 @@ function update(dt){
   if(phase==='in'){
     const e=Math.min(1,phaseT/1.7); box.u=ease(e); beltMoving=e<1;
     if(oldBox) oldBox.u=1+ease(e);
-    if(e>=1){ phase='wait'; phaseT=0; oldBox=null; box.bump=1; wrongs=0; SFX.arrive(); if(started) say(WORDS[box.n]); if(face.mood==='joy') face.mood='idle'; cv.setAttribute('aria-label',ARIA+' Op de doos staat '+box.n+'.'); }
+    if(e>=1){ phase='wait'; phaseT=0; oldBox=null; box.bump=1; wrongs=0; SFX.arrive(); if(started) say(boxWords(box)); if(face.mood==='joy') face.mood='idle'; cv.setAttribute('aria-label',ARIA+' Op de doos staat '+boxWords(box)+' ('+box.n+').'); }
   } else if(phase==='close'){
     const T=phaseT; box.closeT=T;
     if(T-dt<0.2&&T>=0.2) SFX.flaps();
-    if(T-dt<0.95&&T>=0.95){ confetti(box.x,frontY-F*0.4); sparkles(box.x+BW*0.3,frontY+F*0.4,10,1); SFX.jingle(); say('Goed zo!'); flash=1.2; }
+    if(T-dt<0.95&&T>=0.95){ confetti(box.x,frontY-F*0.4); sparkles(box.x+BW*0.3,frontY+F*0.4,10,1); SFX.jingle(); say(box.op?boxWords(box)+' is '+WORDS[box.n]+'!':'Goed zo!'); flash=1.2; }
     if(T-dt<1.25&&T>=1.25) flyT={t:0,x0:box.x,y0:frontY-F*0.3};
     if(T>=2.1){ oldBox=box; box=newBox(); phase='in'; phaseT=0; }
   }
@@ -647,11 +660,8 @@ function drawBox(b,withFruit){
   rrect(l,top,BW,bot-top,F*0.08); c.fillStyle=CARD; c.fill(); c.strokeStyle=INK; c.lineWidth=lw*1.5; c.stroke();
   c.fillStyle=CARD_D; c.fillRect(l+lw,bot-F*0.22,BW-lw*2,F*0.22-lw);
   c.strokeStyle='rgba(120,70,30,0.5)'; c.lineWidth=lw;
-  for(const s of [-1,1]){ const ax=x+s*BW*0.36; for(const o of [-0.13,0.13]){ c.beginPath(); c.moveTo(ax+o*F,top+F*1.0); c.lineTo(ax+o*F,top+F*0.45); c.moveTo(ax+o*F-F*0.09,top+F*0.56); c.lineTo(ax+o*F,top+F*0.45); c.lineTo(ax+o*F+F*0.09,top+F*0.56); c.stroke(); } }
-  const two=b.n>=10, lwid=two?F*1.9:F*1.3, lh=F*1.25, ly=top+(bot-top-lh)/2-F*0.04;
-  rrect(x-lwid/2,ly,lwid,lh,F*0.18); c.fillStyle='#fff8ec'; c.fill(); c.strokeStyle=INK; c.lineWidth=lw*1.3; c.stroke();
-  c.fillStyle=INK; c.font='800 '+Math.round(F*1.25)+'px '+FONT; c.textAlign='center'; c.textBaseline='middle';
-  c.fillText(String(b.n),x,ly+lh*0.56);
+  if(labelW(b)<BW*0.5) for(const s of [-1,1]){ const ax=x+s*BW*0.36; for(const o of [-0.13,0.13]){ c.beginPath(); c.moveTo(ax+o*F,top+F*1.0); c.lineTo(ax+o*F,top+F*0.45); c.moveTo(ax+o*F-F*0.09,top+F*0.56); c.lineTo(ax+o*F,top+F*0.45); c.lineTo(ax+o*F+F*0.09,top+F*0.56); c.stroke(); } }
+  drawLabel(b,x,top+(bot-top)/2-F*0.04);
   // side flaps
   for(const [s,phi] of [[-1,phiL],[1,phiR]]){
     const hx1=s<0?l:r, hx2=s<0?l+ins:r-ins, L=BW/2-(closed?0:F*0.1);
@@ -661,12 +671,32 @@ function drawBox(b,withFruit){
   // star sticker
   if(closed&&T>=0.95){
     const e=Math.min(1,(T-0.95)/0.3), s=RM?1:(e<1?1+Math.sin(e*Math.PI)*0.6:1)*e;
-    c.save(); c.translate(x+BW*0.33,top+F*0.38); c.rotate(-0.25); c.scale(s,s);
+    c.save(); c.translate(x+Math.min(BW/2-F*0.35,Math.max(BW*0.33,labelW(b)/2+F*0.4)),top+F*0.3); c.rotate(-0.25); c.scale(s,s);
     starPath(0,0,F*0.5,F*0.23); c.fillStyle='#ffd23f'; c.fill(); c.strokeStyle=INK; c.lineWidth=lw*1.4; c.stroke();
     shine(-F*0.08,-F*0.12,F*0.08,F*0.04,-0.5);
     c.restore();
   }
   c.restore();
+}
+// the label on the box: a number, or a small sum with a big coloured + or − drawn as bars
+const OPW=0.62;
+function labelW(b){
+  c.font='800 '+Math.round(F*(b.op?1.1:1.25))+'px '+FONT;
+  return b.op?c.measureText(b.a+''+b.b).width+F*(OPW+0.5):Math.max(F*1.3,c.measureText(String(b.n)).width+F*0.5);
+}
+function drawLabel(b,x,y){
+  const w=labelW(b), h=F*1.25;
+  rrect(x-w/2,y-h/2,w,h,F*0.18); c.fillStyle='#fff8ec'; c.fill(); c.strokeStyle=INK; c.lineWidth=lw*1.3; c.stroke();
+  c.fillStyle=INK; c.textBaseline='middle';
+  if(!b.op){ c.textAlign='center'; c.fillText(String(b.n),x,y+h*0.06); return; }
+  const ta=c.measureText(String(b.a)).width;
+  let px=x-w/2+F*0.25;
+  c.textAlign='left'; c.fillText(String(b.a),px,y+h*0.06); px+=ta;
+  const ox=px+F*OPW/2, s=F*0.2, t2=F*0.065;
+  c.fillStyle=b.op==='+'?'#2fae4e':'#e8394d'; c.strokeStyle=INK; c.lineWidth=lw;
+  rrect(ox-s,y-t2,s*2,t2*2,t2*0.6); c.fill(); c.stroke();
+  if(b.op==='+'){ rrect(ox-t2,y-s,t2*2,s*2,t2*0.6); c.fill(); c.stroke(); rrect(ox-s+lw*0.5,y-t2+lw*0.5,s*2-lw,t2*2-lw,0); c.fill(); }
+  c.fillStyle=INK; c.fillText(String(b.b),px+F*OPW,y+h*0.06);
 }
 function drawFruitsAndGhosts(b,sink){
   const fr=b.fruits, items=[];
