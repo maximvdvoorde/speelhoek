@@ -2,6 +2,10 @@
 
 Small browser games for the kids, bundled in one menu page.
 
+- Play: https://maximvdvoorde.github.io/speelhoek/ (installable, works offline)
+- How we build games (rules, style, checklist): `CLAUDE.md`
+- Backlog of game ideas with ready-made prompts: `docs/game-ideas.md`
+
 ## Folder layout
 
 - `games/` – each game as one self-contained HTML file (HTML + CSS + plain JavaScript, Canvas 2D graphics, Web Audio sounds; no libraries)
@@ -9,28 +13,32 @@ Small browser games for the kids, bundled in one menu page.
   - `plassen-springer.html` – pixel-art puddle jumping on an endless rainy street
   - `meteorietenregen.html` – a rocket hops between 3 lanes on a tilted space plane, dodging meteorites and catching stars
   - `eendjes-vissen.html` – kermis duck fishing: hook rubber ducks, flip them over, and fill the prize shelves
-- `hub/speelhoek.template.html` – the menu page; `__GAMES__` is replaced by the build
+- `hub/speelhoek.template.html` – the menu page; `__FONT_CSS__` and `__GAMES__` are replaced by the build
 - `hub/build.py` – bundles every game (plus covers and embedded fonts) into the web app in `site/`
 - `hub/covers.js` – takes a cover screenshot of each game (needs Node + Playwright: `npm install`)
 - `hub/icons.js` – renders the home-screen icons into `hub/icons/`
 - `hub/sw.js`, `hub/manifest.webmanifest` – service worker and manifest that make it an installable offline app
 - `hub/fonts/` – Baloo 2 and Press Start 2P (SIL Open Font License, see the OFL files)
 - `hub/covers/` – the current cover images
+- `.github/workflows/pages.yml` – builds and publishes `site/` to GitHub Pages on every push to `main`
+- `docs/game-ideas.md` – game ideas and prompts
 - `site/` – the built web app (git-ignored; GitHub Actions builds and publishes it to GitHub Pages)
 
 ## Notes
 
-- Every game file is a full HTML document. The menu page passes it through unchanged, only injecting the game's extra CSS (from `build.py`) before `</head>` (see `SHELL` in the template).
+- Every game file is a full HTML document. The menu page passes it through unchanged, only injecting the embedded fonts and the game's extra CSS (from `build.py`) before `</head>` (see `SHELL` in the template).
 - The game files load their fonts from Google Fonts when opened on their own. Inside the hub the build strips those links and embeds the fonts instead, so everything works offline.
 - Offline: a service worker keeps the whole hub on the device after the first visit. When online, it checks for a new version for up to 3 seconds when the app opens.
 - iPhone sound: the games set `navigator.audioSession.type = 'playback'` and unlock audio on the first tap, so the silent switch doesn't mute them.
 
 ## Adding a game
 
+Start a Claude Code session with a prompt from `docs/game-ideas.md` (or its template); the full checklist is in `CLAUDE.md`. In short:
+
 1. Put the new game in `games/`.
-2. Add an entry to the `games` list in `hub/build.py` (id, title, file, optional extra CSS).
-3. Add it to the `jobs` list in `hub/covers.js` and run `node hub/covers.js`.
-4. Run `python3 hub/build.py` to rebuild `site/`, then commit and push to `main` to publish.
+2. Add an entry to the `games` list in `hub/build.py` (id, title, file, optional extra CSS) and to the `jobs` list in `hub/covers.js`.
+3. `npm install` (once), `node hub/covers.js`, then `python3 hub/build.py` (`python` on Windows) to rebuild `site/`.
+4. Commit and push to `main`: GitHub Actions publishes it in about a minute.
 
 ## On the iPad
 

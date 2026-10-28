@@ -2,7 +2,9 @@
 
 Backlog of games for Speelhoek. Each entry has the idea and a prompt to start a Claude Code session with. The general rules (tech, design for a 5-year-old, checklist) are in `CLAUDE.md`, so the prompts only describe what is specific to each game.
 
-Status: ⬜ idea · 🟨 in progress · ✅ in Speelhoek
+Status: ⬜ idea · 🟨 in progress · ✅ in Speelhoek (published)
+
+When a game is done, set its status to ✅ here. The prompts of finished games stay as a record of what was asked.
 
 | Game | Style | Status |
 |---|---|---|
@@ -13,22 +15,6 @@ Status: ⬜ idea · 🟨 in progress · ✅ in Speelhoek
 | Fruit Fabriek | vector | ⬜ |
 | Eendjes Vissen | vector | ✅ |
 | Vogelnestje | to decide | ⬜ (mechanics still open) |
-
----
-
-## 0. First session: project setup
-
-Run this once before the first new game.
-
-```
-Read CLAUDE.md. This is the Speelhoek project: small browser games for my kids, bundled in one menu page.
-
-Before we add new games, do the housekeeping:
-1. Initialise a git repo with a sensible .gitignore and commit the current state.
-2. Do the "Known housekeeping" in CLAUDE.md: give monster-kitchen.html and plassen-springer.html a full HTML document wrapper, and update SHELL in hub/speelhoek.template.html so it passes full documents through (injecting the extra CSS before </head>).
-3. Check that hub/covers.js and hub/build.py still run, and that both games still work standalone and inside speelhoek.html (Playwright screenshots).
-Show me what you changed before committing.
-```
 
 ---
 
@@ -177,6 +163,8 @@ After we choose, build it and follow the "Adding a new game" checklist in CLAUDE
 
 ## Template for a new idea
 
+Add new ideas as a numbered section above this one (idea + prompt), and a row in the table at the top.
+
 ```
 Read CLAUDE.md, then build a new game: games/<id>.html, Dutch title "<title>".
 
@@ -188,4 +176,13 @@ Sound: <key sounds>
 <Attach a drawing if my son made one: copy its features faithfully.>
 
 Follow the "Adding a new game" checklist in CLAUDE.md.
+```
+
+## Template for changing an existing game
+
+```
+Read CLAUDE.md, then change games/<id>.html ("<title>"):
+<what should change, and why: what my son did or didn't like>
+
+Then test, rebuild and publish (steps 3–7 of the "Adding a new game" checklist in CLAUDE.md).
 ```
