@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@700;800&family=Playwrite+BE+VLG&family=Teachers:wght@700&display=swap" rel="stylesheet">
 <style>
-/* Layout: one full-screen canvas (a paper forest at dusk: the owl on its branch, 6 picture cards on strings and mossy stones); listen button by the owl, sound button top-right; title card on top */
+/* Layout: one full-screen canvas (a paper forest at dusk: the owl on its branch, 6 picture cards hanging on strings from twigs); listen button by the owl, sound button top-right; title card on top */
 :root{
   --ink:#3a2a4a;
   --night:#2d2a5a;
@@ -170,7 +170,7 @@ const PICS={
     sh(E_(0.02,-0.25,0.08,0.13),'#9aa4b2'); sh(E_(-0.05,-0.33,0.025,0.06,0.2),'#f2f5f8'); },
   leeuw(){ sh(Y_(starPts(14,0.47,0.37)),'#c96a2a'); sh(O_(-0.22,-0.2,0.09),'#f5c04a'); sh(O_(0.22,-0.2,0.09),'#f5c04a');
     sh(O_(0,0.03,0.28),'#f5c04a'); sh(E_(0,0.15,0.15,0.1),'#fff0cc'); sh(Y_([-0.07,0.06,0.07,0.06,0,0.13]),'#6a3a2a');
-    eye(-0.11,-0.05,0.045); eye(0.11,-0.05,0.045); ln('#6a3a2a',0.02,[-0.06,0.2,0,0.17,0.06,0.2]); },
+    eye(-0.11,-0.05,0.045); eye(0.11,-0.05,0.045); ln('#6a3a2a',0.02,[-0.06,0.18,0,0.21,0.06,0.18]); },
   lolly(){ sh(R_(-0.025,0.05,0.05,0.44,0.02),'#fff6e8'); sh(O_(0,-0.13,0.31),'#ff6fa8'); spiral(0,-0.13,0.27,2.2,'#fff',0.05); },
   fiets(){ ring('#3a3a4a',0.05,-0.26,0.16,0.18); ring('#3a3a4a',0.05,0.26,0.16,0.18); sh(O_(-0.26,0.16,0.03),'#3a3a4a'); sh(O_(0.26,0.16,0.03),'#3a3a4a');
     ln('#e8393d',0.045,[-0.26,0.16,-0.04,0.16,0.15,-0.1,-0.11,-0.1,-0.26,0.16]); ln('#e8393d',0.045,[-0.04,0.16,-0.15,-0.2]); ln('#e8393d',0.045,[0.26,0.16,0.12,-0.24]);
@@ -266,7 +266,7 @@ function resize(){
   // pick the grid (3x2 or 2x3) that gives the biggest cards
   let best=0;
   for(const [cc,rw] of [[3,2],[2,3]]){ const s=Math.min(gw/cc*0.8,gh/rw*0.74); if(s>best){ best=s; cols=cc; rows=rw; } }
-  S=Math.min(best,230); cellW=gw/cols; cellH=gh/rows; twigY=gy0+cellH*0.05;
+  S=Math.min(best,230); cellW=gw/cols; cellH=gh/rows; twigY=twigAt(0);
   branchY=oy+O*0.44; trunkW=Math.max(26,O*0.32);
   BW=O*0.62; BH=O*0.36; bx=ox+O*0.82; bTop=branchY-BH*0.9;
   // the letter sign hangs under the owl's branch (in portrait: in the gap above the cards)
@@ -283,9 +283,10 @@ function resize(){
 }
 function cellCentre(i){
   const col=i%cols, row=Math.floor(i/cols), x=gx0+cellW*(col+0.5), y=gy0+cellH*(row+0.5);
-  return row===0 ? {x,y:y+cellH*0.05,hang:true} : {x,y:y-S*0.08,hang:false};
+  return {x,y:y+cellH*0.05,ty:twigAt(row)};
 }
-function layoutCard(k){ const p=cellCentre(k.i); k.x=p.x; k.y=p.y; k.hang=p.hang; }
+const twigAt=row=>gy0+cellH*(row+0.05); // every row of cards hangs from its own twig
+function layoutCard(k){ const p=cellCentre(k.i); k.x=p.x; k.y=p.y; k.ty=p.ty; }
 
 /* ---------- paper grain + cached scenery ---------- */
 function makeGrain(){
@@ -338,14 +339,9 @@ function buildScene(){
   g.fillStyle='#6e4c3c'; tornPath([trunkW*0.6,branchY-bt*1.6,bEnd,branchY-bt*0.4,bEnd+4,branchY+bt*0.3,trunkW*0.6,branchY+bt*1.6],8,1.2); g.fill();
   noShadow(); g.strokeStyle='rgba(40,25,20,0.45)'; g.lineWidth=2; g.lineCap='round';
   for(let i=0;i<6;i++){ const x=trunkW*(0.2+i*0.12), y=H*(0.1+i*0.15); g.beginPath(); g.moveTo(x,y); g.quadraticCurveTo(x+4,y+H*0.05,x-2,y+H*0.1); g.stroke(); }
-  // the twig the top row of cards hangs from, and mossy stones under the other rows
-  paperShadow(10,3);
-  g.fillStyle='#6e4c3c'; tornPath([gx0-S*0.1,twigY-S*0.025,W+10,twigY-S*0.05,W+10,twigY+S*0.05,gx0-S*0.1,twigY+S*0.025],8,1); g.fill();
-  for(let i=cols;i<cols*rows;i++){ const p=cellCentre(i), sy=p.y+S*0.5;
-    const st=[]; for(let k=0;k<20;k++){ const a=k/20*P; st.push(p.x+Math.cos(a)*S*0.6,sy+Math.sin(a)*S*0.16-(Math.sin(a)<0?S*0.05:0)); }
-    paperShadow(10,4); g.fillStyle='#7a7590'; tornPath(st,6,1.4); g.fill();
-    paperShadow(4,1,0.3); g.fillStyle='#6aa04e';
-    tornPath([p.x-S*0.56,sy-S*0.02,p.x-S*0.3,sy-S*0.17,p.x+S*0.2,sy-S*0.2,p.x+S*0.55,sy-S*0.05,p.x+S*0.3,sy+S*0.02,p.x-S*0.2,sy+S*0.04],5,2); g.fill(); }
+  // a twig for each row of cards to hang from
+  paperShadow(10,3); g.fillStyle='#6e4c3c';
+  for(let r=0;r<rows;r++){ const y=twigAt(r); tornPath([gx0-S*0.1,y-S*0.025,W+10,y-S*0.05,W+10,y+S*0.05,gx0-S*0.1,y+S*0.025],8,1); g.fill(); }
   noShadow();
   g.fillStyle=grain; g.fillRect(0,0,W,H);
   g=c;
@@ -358,7 +354,7 @@ function buildLeaves(){
   const L=Math.max(18,O*0.2), bEnd=bx+BW*0.75;
   for(let i=0;i<5;i++) leaves.push({x:lerp(trunkW,bEnd,0.12+i*0.21),y:branchY+(i%2?O*0.06:-O*0.03),a:i%2?1.1:-1.9+i*0.2,L,col:LEAF[i%LEAF.length],ph:i*1.7});
   const n=Math.max(4,Math.round((W-gx0)/(S*0.6)));
-  for(let i=0;i<n;i++) leaves.push({x:gx0+(i+0.3)*(W-gx0)/n,y:twigY+(i%2?S*0.04:-S*0.03),a:i%2?1.0:-2.2,L:L*0.85,col:LEAF[(i+2)%LEAF.length],ph:i*2.3});
+  for(let r=0;r<rows;r++) for(let i=0;i<n;i++) leaves.push({x:gx0+(i+0.3+r*0.35)*(W-gx0)/n,y:twigAt(r)+(i%2?S*0.04:-S*0.03),a:i%2?1.0:-2.2,L:L*0.85,col:LEAF[(i+2+r)%LEAF.length],ph:i*2.3+r});
 }
 function drawLeaf(l){
   const a=l.a+(RM?0:Math.sin(t*1.6+l.ph)*0.18);
@@ -630,10 +626,9 @@ function tapCard(k){
 const FLY=0.9;
 function cardPose(k){
   let x=k.x, y=k.y, rot=0, sc=1, al=1;
-  if(k.hang){ const L=k.y-twigY, a=RM?0:Math.sin(t*1.2+k.ph)*0.035; rot=a; x=k.x-Math.sin(a)*L; y=twigY+Math.cos(a)*L; }
-  else rot=Math.sin(k.ph)*0.04;
+  { const L=k.y-k.ty, a=RM?0:Math.sin(t*1.2+k.ph)*0.035; rot=a; x=k.x-Math.sin(a)*L; y=k.ty+Math.cos(a)*L; }
   if(k.wig>0) rot+=Math.sin(k.wig*28)*0.2*(k.wig/0.9)*(RM?0.4:1);
-  if(k.st==='in'){ const e=clamp(k.t/0.45,0,1), b=e-1; sc=e<=0?0:1+2.7*b*b*b+1.7*b*b; if(k.hang) y-=(1-ease(e))*S*0.5; }
+  if(k.st==='in'){ const e=clamp(k.t/0.45,0,1), b=e-1; sc=e<=0?0:1+2.7*b*b*b+1.7*b*b; y-=(1-ease(e))*S*0.5; }
   else if(k.st==='fly'){ const e=ease(Math.min(1,k.ft/FLY));
     x=lerp(k.fx,bx,e)+Math.sin(e*Math.PI*3)*S*0.25*(1-e); y=lerp(k.fy,bTop-BW*0.1,e)-Math.sin(e*Math.PI)*O*0.6;
     rot=Math.sin(e*14)*0.5*(1-e); sc=lerp(1,BW*0.55/S,e); }
@@ -673,9 +668,9 @@ function drawCards(flying){
   for(const k of cards){
     if(k.st==='gone'||(k.st==='fly')!==flying) continue;
     const p=cardPose(k);
-    if(k.hang&&(k.st==='idle'||k.st==='in')&&p.sc>0.05){
+    if((k.st==='idle'||k.st==='in')&&p.sc>0.05){
       const tx=p.x+Math.sin(p.rot)*S*0.42*p.sc, ty=p.y-Math.cos(p.rot)*S*0.42*p.sc;
-      c.strokeStyle='#e8dcc0'; c.lineWidth=Math.max(1.5,S*0.012); c.beginPath(); c.moveTo(k.x,twigY); c.lineTo(tx,ty); c.stroke();
+      c.strokeStyle='#e8dcc0'; c.lineWidth=Math.max(1.5,S*0.012); c.beginPath(); c.moveTo(k.x,k.ty); c.lineTo(tx,ty); c.stroke();
       c.fillStyle='#5a3a2a'; c.beginPath(); c.arc(tx,ty,Math.max(2,S*0.02),0,P); c.fill();
     }
     drawCardImg(k,p.x,p.y,p.rot,p.sc,p.al);
@@ -692,14 +687,15 @@ function makeSign(){
   paperShadow(10,4);
   g.fillStyle='#fbf3e2'; tornPath([0,0,signW,0,signW,signH,0,signH],signH*0.12,signH*0.012); g.fill();
   noShadow(); g.save(); g.clip(); g.fillStyle=grain; g.fillRect(0,0,signW,signH); g.restore();
-  // school writing lines behind the script letter
-  const lx=signW*0.68, lw=signW*0.28, base=signH*0.6, xh=signH*0.17;
+  // school writing lines behind the script letter. In Playwrite the n-height and the p-legs are both 0.52 em
+  // and the l-tops 1.02 em, so the lines sit on: l-tops, n-tops, baseline, p-legs
+  const lx=signW*0.68, lw=signW*0.28, base=signH*0.61, fs=signH*0.54, xh=fs*0.52;
   g.strokeStyle='rgba(61,127,214,0.35)'; g.lineWidth=Math.max(1,signH*0.012);
-  for(const y of [base-xh*2,base-xh,base,base+xh]){ g.beginPath(); g.moveTo(lx,y); g.lineTo(lx+lw,y); g.stroke(); }
+  for(const y of [base-fs*1.02,base-xh,base,base+xh]){ g.beginPath(); g.moveTo(lx,y); g.lineTo(lx+lw,y); g.stroke(); }
   g.textAlign='center'; g.textBaseline='alphabetic';
   g.fillStyle='#3a2a4a'; g.font='700 '+Math.round(signH*0.62)+'px '+PRINT;
-  g.fillText(cur.k.toUpperCase(),signW*0.17,signH*0.72); g.fillText(cur.k,signW*0.46,signH*0.72);
-  g.fillStyle='#2d5fa8'; g.font='400 '+Math.round(xh*3.3)+'px '+SCRIPT;
+  g.fillText(cur.k.toUpperCase(),signW*0.17,base); g.fillText(cur.k,signW*0.46,base);
+  g.font='400 '+Math.round(fs)+'px '+SCRIPT;
   g.fillText(cur.k,lx+lw/2,base);
   g=c; return cg;
 }
