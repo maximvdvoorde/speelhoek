@@ -14,7 +14,7 @@ When a game is done, set its status to ✅ here. The prompts of finished games s
 | Plasticsoep Opruimer | vector | ✅ |
 | Fruit Fabriek | vector | ✅ |
 | Eendjes Vissen | vector | ✅ |
-| Vogelnestje | to decide | ⬜ (mechanics still open) |
+| Vogelnestje | vector | ✅ |
 
 ---
 
@@ -144,6 +144,8 @@ Possible mechanics to discuss with him:
 - **A. Tap where the bird should fly:** twigs lie in the grass and the bushes. Tap one, the bird flies there, picks it up and brings it to the nest. The easiest option for a 5-year-old.
 - **B. Steer the bird yourself:** drag your finger and the bird follows it. Fly over a twig to grab it, and fly back to the nest to drop it. More of a "flying" feeling, but harder.
 - **C. Flappy-style flight:** tap to flap, like Plasticsoep Opruimer. Probably too similar to that game.
+
+**Chosen: B** (the bird follows the finger), with the bird's colours in one palette (`PAL`) so a drawing can replace it later. Round: 8 twigs, sit on 3 eggs to hatch them, 2 worms per chick, the chicks fly away (the counter goes up), night, then a new nest in the next season with the tree on the other side.
 
 Phases: (1) twigs, with the nest visibly growing per twig, (2) eggs appear and must be kept warm or hatch with a tap-tap-crack, (3) hungry chicks open their beaks and the player brings worms that wiggle out of the ground after a tap on a molehill or puddle. Then (4) a new day with a new nest in another tree? Or the chicks grow up and fly away?
 

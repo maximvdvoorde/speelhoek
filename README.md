@@ -15,6 +15,7 @@ Small browser games for the kids, bundled in one menu page.
   - `eendjes-vissen.html` – kermis duck fishing: hook rubber ducks, flip them over, and fill the prize shelves
   - `plasticsoep-opruimer.html` – a yellow submarine-garbage-truck swims up with each tap and gobbles up floating plastic with its mechanical mouth; the sea turns clear blue and fills with fish and coral as the count rises
   - `fruit-fabriek.html` – counting game: tap to drop fruit from a machine into the box on the conveyor belt until it matches the number, then press the green button (Dutch counting voice); after a run of right boxes, small sums and subtractions (up to 10) appear on the boxes; buttons top-right turn the voice and the sums off (remembered on the device)
+  - `vogelnestje.html` – the bird follows your finger: fly twigs to the nest, sit on the eggs until they hatch, pull worms out of molehills to feed the chicks; then they fly away and a new nest starts in the next season
 - `hub/speelhoek.template.html` – the menu page; `__FONT_CSS__` and `__GAMES__` are replaced by the build
 - `hub/build.py` – bundles every game (plus covers and embedded fonts) into the web app in `site/`
 - `hub/covers.js` – takes a cover screenshot of each game (needs Node + Playwright: `npm install`)
