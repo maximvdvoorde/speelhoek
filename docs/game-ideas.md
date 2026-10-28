@@ -12,7 +12,7 @@ When a game is done, set its status to ✅ here. The prompts of finished games s
 | Plassen Springer | pixel art | ✅ |
 | Meteorietenregen | vector (space) | ✅ |
 | Plasticsoep Opruimer | vector | ✅ |
-| Fruit Fabriek | vector | ⬜ |
+| Fruit Fabriek | vector | ✅ |
 | Eendjes Vissen | vector | ✅ |
 | Vogelnestje | to decide | ⬜ (mechanics still open) |
 
