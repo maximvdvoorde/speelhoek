@@ -1,0 +1,812 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Vogelnestje</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@700;800&display=swap" rel="stylesheet">
+<style>
+/* Layout: one full-screen canvas (a meadow with a tree, the nest on a branch, bushes and molehills on the grass); bird counter top centre; sound button top-right; title card on top */
+:root{
+  --ink:#3b2340;
+  --sky:#8fd3ff;
+  --paper:#fff8ec;
+  --gold:#ffd23f;
+  --accent:#ff7a59;
+  --font-display:"Baloo 2","Comic Sans MS","Chalkboard SE",system-ui,sans-serif;
+  color-scheme: light;
+}
+html,body{margin:0;height:100%}
+body{background:var(--sky);color:var(--ink);overflow:hidden;font-family:var(--font-display);-webkit-user-select:none;user-select:none;touch-action:none;-webkit-tap-highlight-color:transparent}
+#game{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:none;cursor:pointer}
+.hud{position:fixed;top:calc(10px + env(safe-area-inset-top,0px));right:max(12px,env(safe-area-inset-right,0px));display:flex;gap:10px}
+.btn{width:60px;height:60px;border-radius:50%;border:3px solid var(--ink);background:var(--paper);color:var(--ink);box-shadow:0 4px 0 var(--ink);display:grid;place-items:center;padding:0;cursor:pointer}
+.btn:active{transform:translateY(3px);box-shadow:0 1px 0 var(--ink)}
+.btn:focus-visible{outline:4px solid var(--accent);outline-offset:3px}
+.btn svg{width:30px;height:30px}
+.count{position:fixed;top:calc(10px + env(safe-area-inset-top,0px));left:50%;transform:translateX(-50%);height:54px;display:flex;align-items:center;gap:6px;padding:0 18px 0 10px;border:3px solid var(--ink);border-radius:30px;background:var(--paper);box-shadow:0 4px 0 var(--ink);font-weight:800;font-size:34px;line-height:1;pointer-events:none;font-variant-numeric:tabular-nums}
+.count svg{width:42px;height:42px;flex:none}
+.count span{padding-top:4px;min-width:1ch;text-align:center}
+.count.bump{animation:bump .4s ease-out}
+@keyframes bump{40%{transform:translateX(-50%) scale(1.2)}}
+.title{position:fixed;left:0;right:0;top:calc(24% + env(safe-area-inset-top,0px));display:flex;flex-direction:column;align-items:center;gap:16px;text-align:center;pointer-events:none;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));transition:opacity .6s,transform .6s}
+.title h1{margin:0;font-weight:800;font-size:clamp(40px,10vw,90px);line-height:1;color:var(--gold);letter-spacing:.01em;-webkit-text-stroke:7px var(--ink);paint-order:stroke fill;text-shadow:0 6px 0 var(--ink)}
+.title p{margin:0;font-size:clamp(20px,3.4vw,28px);font-weight:800;line-height:1.1;background:var(--paper);border:3px solid var(--ink);box-shadow:0 4px 0 var(--ink);border-radius:30px;padding:10px 22px 8px}
+.title small{font-size:clamp(15px,2.2vw,19px);font-weight:800;color:var(--ink);max-width:32ch;text-wrap:balance;background:rgba(255,248,236,.8);border-radius:16px;padding:6px 14px}
+.title.gone{opacity:0;transform:translateY(-24px)}
+@media (prefers-reduced-motion:reduce){.title{transition:opacity .4s}.title.gone{transform:none}.count.bump{animation:none}}
+</style>
+</head>
+<body>
+<canvas id="game" role="img" aria-label="Een wei met een boom. Sleep met je vinger en het vogeltje vliegt mee: breng takjes naar het nest, warm de eitjes en breng wormpjes naar de kuikens."></canvas>
+<div class="count" id="count" aria-live="polite"><svg viewBox="0 0 42 42" aria-hidden="true"><g stroke="#3b2340" stroke-width="2.4" stroke-linejoin="round"><path d="M9 22 L2 16 L3 25 L9 27 Z" fill="#2b84d6"/><ellipse cx="17" cy="25" rx="11" ry="10" fill="#4fb3ff"/><circle cx="24" cy="16" r="8" fill="#4fb3ff"/><path d="M31 14 L38 17 L31 19 Z" fill="#ffa630"/><ellipse cx="22" cy="7" rx="2" ry="4" transform="rotate(-25 22 7)" fill="#ff6b6b"/></g><circle cx="26" cy="15" r="2" fill="#3b2340"/><path d="M11 24 Q17 31 22 24" fill="none" stroke="#3b2340" stroke-width="2.2" stroke-linecap="round"/></svg><span id="num">0</span></div>
+<div class="title" id="title">
+  <h1>Vogelnestje</h1>
+  <p>Tik om te beginnen</p>
+  <small>Sleep met je vinger: het vogeltje vliegt mee. Breng takjes naar het nest, warm de eitjes en geef de kuikens wormpjes.</small>
+</div>
+<div class="hud">
+  <button class="btn" id="sound" type="button" aria-label="Geluid staat aan" aria-pressed="true"></button>
+</div>
+
+<script>
+(() => {
+const INK='#3b2340';
+const RM=matchMedia('(prefers-reduced-motion: reduce)').matches;
+const MW=RM?0.35:1; // wobble strength
+const cv=document.getElementById('game'), c=cv.getContext('2d');
+const titleEl=document.getElementById('title'), soundBtn=document.getElementById('sound');
+const countEl=document.getElementById('count'), numEl=document.getElementById('num');
+const P=Math.PI*2;
+const rand=(a,b)=>a+Math.random()*(b-a);
+const clamp=(v,a,b)=>v<a?a:v>b?b:v;
+const lerp=(a,b,e)=>a+(b-a)*e;
+const ease=e=>e*e*(3-2*e);
+const dist=(ax,ay,bx,by)=>Math.hypot(ax-bx,ay-by);
+
+const NEED=8;      // twigs per nest
+const EGGS=3;
+const FEED=2;      // worms per chick
+const WARM_T=4.5;  // seconds of sitting to hatch all eggs
+
+/* ---------- the bird's look (swap these colours for a drawing) ---------- */
+const PAL={body:'#4fb3ff',belly:'#fff1c9',wing:'#2b84d6',crest:'#ff6b6b',beak:'#ffa630',cheek:'rgba(255,110,140,0.5)'};
+const YOUNG=[
+  {body:'#9adcff',belly:'#fff6dc',wing:'#56a8e8',crest:'#ff9a8a',beak:'#ffb347',cheek:'rgba(255,110,140,0.5)'},
+  {body:'#9be585',belly:'#fff6dc',wing:'#5ab34a',crest:'#ffd23f',beak:'#ffb347',cheek:'rgba(255,110,140,0.5)'},
+  {body:'#ffb98a',belly:'#fff6dc',wing:'#e8844e',crest:'#ff6b9a',beak:'#ffb347',cheek:'rgba(255,110,140,0.5)'},
+];
+
+/* ---------- seasons: each new nest is in the next one ---------- */
+const SEASONS=[
+  {sky:['#7cc8ff','#e2f5ff'],hillFar:'#b5e3a1',hillNear:'#94d47e',grass:'#7ccc52',grassD:'#5daa3c',leaf:['#6fca4c','#86d95f'],leafHi:'#a8ea7e',dots:'#ffb3d1',fall:'petal',twigLeaf:'#6cc24a',flowers:true,sun:'#ffd23f'},
+  {sky:['#4fb8ff','#d4f1ff'],hillFar:'#9ed58a',hillNear:'#77c35f',grass:'#62bb45',grassD:'#479a30',leaf:['#3fa83a','#56bd47'],leafHi:'#7fd86a',dots:'#ff4d6d',fall:null,twigLeaf:'#4fae3a',flowers:true,sun:'#ffd23f'},
+  {sky:['#ffb978','#ffeccc'],hillFar:'#e0b878',hillNear:'#cf9d58',grass:'#b7b84e',grassD:'#96983a',leaf:['#ff9a3c','#f2752e','#ffc23f'],leafHi:'#ffd27a',dots:null,fall:'leaf',twigLeaf:'#f2752e',flowers:false,sun:'#ffc23f'},
+  {sky:['#a9c8e8','#eef5fb'],hillFar:'#e9f1f8',hillNear:'#dce8f2',grass:'#f5f9fc',grassD:'#d3e0ea',leaf:['#e6f0f7','#f7fbff'],leafHi:'#ffffff',dots:null,fall:'snow',twigLeaf:null,flowers:false,sun:'#fff3b0'},
+];
+let season=0, side=1; // side 1: tree on the right, -1: on the left
+const S=()=>SEASONS[season];
+
+/* ---------- layout ---------- */
+let W=0,H=0,DPR=1,B=60,groundY=0,topY=70,treeX=0,nx=0,ny=0,NW=0,ND=0,cx0=0,cy0=0;
+const sideX=u=>side>0?u*W:(1-u)*W;
+const CANOPY=[[0,-0.2,1.25],[-1.25,0.25,0.95],[1.2,0.2,1.0],[-0.65,-0.95,0.95],[0.6,-1.0,1.0],[-0.1,0.55,0.85],[1.05,-0.55,0.8],[-1.3,-0.45,0.75]];
+const BUSHES=[0.1,0.95], HILLS=[0.2,0.42,0.63];
+function resize(){
+  DPR=Math.min(2,window.devicePixelRatio||1);
+  W=innerWidth; H=innerHeight;
+  cv.width=Math.round(W*DPR); cv.height=Math.round(H*DPR);
+  B=Math.max(34,Math.min(W*0.15,H*0.095));
+  groundY=H*0.8;
+  topY=countEl.getBoundingClientRect().bottom+4;
+  layout();
+  bird.x=clamp(bird.x||W*0.4,minX(),maxX()); bird.y=clamp(bird.y||H*0.4,minY(),maxY());
+  target.x=clamp(target.x||bird.x,minX(),maxX()); target.y=clamp(target.y||bird.y,minY(),maxY());
+}
+function layout(){
+  treeX=sideX(0.8); nx=treeX-side*Math.min(B*2.3,W*0.22); ny=H*0.46;
+  NW=B*2.1; ND=B*0.62;
+  cx0=treeX-side*B*0.7; cy0=ny-B*2.55;
+}
+const minX=()=>B*0.5, maxX=()=>W-B*0.5, minY=()=>B*0.5, maxY=()=>groundY-B*0.1;
+const canopy=()=>CANOPY.map(([dx,dy,r])=>[cx0+dx*B*side,cy0+dy*B,r*B]);
+const bushPos=i=>clamp(sideX(BUSHES[i]),B*0.9,W-B*0.9);
+const hillPos=i=>sideX(HILLS[i]);
+
+/* ---------- drawing helpers ---------- */
+function darken(hex,k){ const n=parseInt(hex.slice(1),16); const f=v=>Math.round(v*k); return 'rgb('+f(n>>16)+','+f((n>>8)&255)+','+f(n&255)+')'; }
+function outlineFill(parts,lw){
+  c.strokeStyle=INK; c.lineWidth=lw*2; for(const [p] of parts){ p(); c.stroke(); }
+  for(const [p,col] of parts){ p(); c.fillStyle=col; c.fill(); }
+}
+function starPath(X,Y,r,ri){
+  c.beginPath();
+  for(let i=0;i<10;i++){ const a=-Math.PI/2+i*Math.PI/5, rr=i%2?ri:r; c.lineTo(X+Math.cos(a)*rr,Y+Math.sin(a)*rr); }
+  c.closePath();
+}
+function heartPath(x,y,s){
+  c.beginPath(); c.moveTo(x,y+s*0.6); c.bezierCurveTo(x-s*1.1,y-s*0.1,x-s*0.5,y-s*0.85,x,y-s*0.3); c.bezierCurveTo(x+s*0.5,y-s*0.85,x+s*1.1,y-s*0.1,x,y+s*0.6);
+}
+
+/* ---------- the bird ---------- */
+// Drawn facing right around its body centre, s = size; o: dir, rot, wing (angle), sit, blink, happy, sing, pal, carry
+function wingShape(ax,ay,a,s,col,lw){
+  c.save(); c.translate(ax,ay); c.rotate(a);
+  c.beginPath(); c.moveTo(0.06*s,-0.06*s); c.quadraticCurveTo(-0.2*s,-0.22*s,-0.52*s,-0.06*s);
+  c.quadraticCurveTo(-0.34*s,0.0,-0.44*s,0.09*s); c.quadraticCurveTo(-0.16*s,0.17*s,0.06*s,0.06*s); c.closePath();
+  c.fillStyle=col; c.fill(); c.strokeStyle=INK; c.lineWidth=lw; c.stroke();
+  c.restore();
+}
+function drawBird(x,y,s,o){
+  const pal=o.pal||PAL, lw=Math.max(1.4,s*0.045), wing=o.sit?-0.15:o.wing;
+  c.save(); c.translate(x,y); c.rotate(o.rot||0); c.scale(o.dir||1,1);
+  c.lineJoin='round'; c.lineCap='round';
+  if(!o.sit){
+    wingShape(0.02*s,-0.16*s,wing*0.9+0.12,s,darken(pal.wing,0.8),lw);
+    c.strokeStyle=INK; c.lineWidth=lw*2.6;
+    for(const lx of [-0.04,0.1]){ c.beginPath(); c.moveTo(lx*s,0.32*s); c.lineTo((lx-0.07)*s,0.45*s); c.stroke(); }
+    c.strokeStyle=pal.beak; c.lineWidth=lw*1.1;
+    for(const lx of [-0.04,0.1]){ c.beginPath(); c.moveTo(lx*s,0.32*s); c.lineTo((lx-0.07)*s,0.45*s); c.stroke(); }
+  }
+  const body=()=>{ c.beginPath(); c.ellipse(0,0.02*s,0.44*s,0.37*s,0,0,P); };
+  outlineFill([
+    [()=>{ c.beginPath(); c.moveTo(-0.3*s,-0.1*s); c.lineTo(-0.74*s,-0.32*s); c.quadraticCurveTo(-0.66*s,-0.1*s,-0.76*s,0.02*s); c.quadraticCurveTo(-0.55*s,0.1*s,-0.3*s,0.14*s); c.closePath(); },pal.wing],
+    [()=>{ c.beginPath(); c.ellipse(0.15*s,-0.6*s,0.05*s,0.12*s,-0.5,0,P); },pal.crest],
+    [()=>{ c.beginPath(); c.ellipse(0.26*s,-0.62*s,0.045*s,0.11*s,0.15,0,P); },pal.crest],
+    [body,pal.body],
+    [()=>{ c.beginPath(); c.arc(0.24*s,-0.28*s,0.27*s,0,P); },pal.body],
+  ],lw);
+  c.save(); body(); c.clip(); c.fillStyle=pal.belly; c.beginPath(); c.ellipse(0.14*s,0.16*s,0.3*s,0.24*s,-0.2,0,P); c.fill(); c.restore();
+  c.fillStyle='rgba(255,255,255,0.5)'; c.beginPath(); c.ellipse(0.14*s,-0.44*s,0.08*s,0.04*s,-0.5,0,P); c.fill();
+  wingShape(-0.02*s,-0.06*s,wing,s,pal.wing,lw);
+  // beak (open when singing or carrying)
+  c.fillStyle=pal.beak; c.strokeStyle=INK; c.lineWidth=lw;
+  if(o.sing>0||o.carry){
+    c.beginPath(); c.moveTo(0.44*s,-0.34*s); c.lineTo(0.7*s,-0.3*s); c.lineTo(0.45*s,-0.26*s); c.closePath(); c.fill(); c.stroke();
+    c.beginPath(); c.moveTo(0.45*s,-0.24*s); c.lineTo(0.64*s,-0.17*s); c.lineTo(0.43*s,-0.18*s); c.closePath(); c.fill(); c.stroke();
+  } else { c.beginPath(); c.moveTo(0.44*s,-0.34*s); c.lineTo(0.69*s,-0.26*s); c.lineTo(0.44*s,-0.19*s); c.closePath(); c.fill(); c.stroke(); }
+  // eye + cheek
+  if(o.happy){ c.lineWidth=lw*1.2; c.beginPath(); c.arc(0.33*s,-0.32*s,0.06*s,Math.PI*1.1,Math.PI*1.9); c.stroke(); }
+  else if(o.blink){ c.lineWidth=lw*1.2; c.beginPath(); c.moveTo(0.27*s,-0.34*s); c.lineTo(0.39*s,-0.34*s); c.stroke(); }
+  else { c.fillStyle=INK; c.beginPath(); c.arc(0.33*s,-0.34*s,0.075*s,0,P); c.fill(); c.fillStyle='#fff'; c.beginPath(); c.arc(0.35*s,-0.37*s,0.027*s,0,P); c.fill(); }
+  c.fillStyle=pal.cheek; c.beginPath(); c.arc(0.3*s,-0.19*s,0.055*s,0,P); c.fill();
+  if(o.carry==='twig'){ c.save(); c.translate(0.6*s,-0.24*s); c.rotate(0.12); drawTwig(0,0,s*0.85,0); c.restore(); }
+  if(o.carry==='worm'){
+    const pts=[]; for(let k=0;k<=8;k++){ const u=k/8; pts.push([0.6*s+Math.sin(t*8+u*4)*0.08*s*u*MW,-0.22*s+u*0.5*s]); }
+    drawWorm(pts,s*0.065);
+  }
+  c.restore();
+}
+function beakPos(){
+  const r=bird.rot, lx=0.62*B*bird.dir, ly=-0.24*B;
+  return [bird.x+Math.cos(r)*lx-Math.sin(r)*ly, bird.y+Math.sin(r)*lx+Math.cos(r)*ly];
+}
+
+/* ---------- twigs, worms, eggs, chicks ---------- */
+function drawTwig(x,y,s,rot){
+  const lw=Math.max(1.2,s*0.04), leaf=S().twigLeaf;
+  c.save(); c.translate(x,y); c.rotate(rot); c.lineCap='round';
+  const stick=()=>{ c.beginPath(); c.moveTo(-0.45*s,0.02*s); c.lineTo(0.45*s,-0.02*s); c.moveTo(0.08*s,0); c.lineTo(0.28*s,-0.17*s); c.moveTo(-0.2*s,0.01*s); c.lineTo(-0.32*s,0.12*s); };
+  stick(); c.strokeStyle=INK; c.lineWidth=s*0.09+lw*2; c.stroke();
+  stick(); c.strokeStyle='#9a6236'; c.lineWidth=s*0.09; c.stroke();
+  c.strokeStyle='rgba(255,230,190,0.6)'; c.lineWidth=s*0.025; c.beginPath(); c.moveTo(-0.38*s,0); c.lineTo(0.3*s,-0.03*s); c.stroke();
+  if(leaf){ c.beginPath(); c.ellipse(0.33*s,-0.24*s,0.09*s,0.05*s,-0.7,0,P); c.fillStyle=leaf; c.fill(); c.strokeStyle=INK; c.lineWidth=lw; c.stroke(); }
+  c.restore();
+}
+function drawWorm(pts,r){
+  const lw=Math.max(1.2,r*0.5);
+  c.lineCap='round'; c.lineJoin='round';
+  const path=()=>{ c.beginPath(); c.moveTo(pts[0][0],pts[0][1]); for(let i=1;i<pts.length;i++) c.lineTo(pts[i][0],pts[i][1]); };
+  path(); c.strokeStyle=INK; c.lineWidth=r*2+lw*2; c.stroke();
+  path(); c.strokeStyle='#ff8fa3'; c.lineWidth=r*2; c.stroke();
+  c.strokeStyle='rgba(200,60,100,0.45)'; c.lineWidth=Math.max(1,r*0.35);
+  for(let i=2;i<pts.length-1;i+=2){ const [x,y]=pts[i]; c.beginPath(); c.arc(x,y,r*0.75,0,Math.PI); c.stroke(); }
+  const [hx,hy]=pts[pts.length-1];
+  c.fillStyle=INK; for(const m of [-1,1]){ c.beginPath(); c.arc(hx+m*r*0.45,hy-r*0.1,Math.max(1,r*0.22),0,P); c.fill(); }
+}
+function drawEgg(x,y,s,rot,crack){
+  const w=s*0.78, lw=Math.max(1.4,s*0.06);
+  c.save(); c.translate(x,y); c.rotate(rot);
+  c.beginPath(); c.ellipse(0,-s*0.5,w/2,s/2,0,0,P);
+  c.fillStyle='#cdeeff'; c.fill(); c.strokeStyle=INK; c.lineWidth=lw; c.stroke();
+  c.fillStyle='#86bde3';
+  for(const [ex,ey,er] of [[-0.15,-0.7,0.06],[0.12,-0.55,0.05],[-0.05,-0.35,0.045],[0.18,-0.8,0.04],[-0.2,-0.48,0.035]]){ c.beginPath(); c.arc(ex*s,ey*s,er*s,0,P); c.fill(); }
+  c.fillStyle='rgba(255,255,255,0.75)'; c.beginPath(); c.ellipse(-w*0.18,-s*0.72,w*0.08,s*0.12,0.3,0,P); c.fill();
+  if(crack>0){ c.strokeStyle=INK; c.lineWidth=lw*0.9; c.beginPath(); const n=Math.ceil(crack*5);
+    c.moveTo(-w*0.45,-s*0.55); for(let i=1;i<=n;i++) c.lineTo(-w*0.45+i*w*0.18,-s*0.55+(i%2?-1:1)*s*0.08); c.stroke(); }
+  c.restore();
+}
+// Front-facing chick: o = open beak (0..1)
+function drawChick(x,y,s,open,happy){
+  const lw=Math.max(1.4,s*0.05), col='#ffd23f';
+  c.save(); c.translate(x,y); c.lineJoin='round';
+  outlineFill([
+    [()=>{ c.beginPath(); c.arc(-0.08*s,-0.5*s,0.09*s,0,P); },col],
+    [()=>{ c.beginPath(); c.arc(0.07*s,-0.53*s,0.08*s,0,P); },col],
+    [()=>{ c.beginPath(); c.ellipse(-0.45*s,0.08*s,0.12*s,0.2*s,0.5,0,P); },'#ffc21a'],
+    [()=>{ c.beginPath(); c.ellipse(0.45*s,0.08*s,0.12*s,0.2*s,-0.5,0,P); },'#ffc21a'],
+    [()=>{ c.beginPath(); c.arc(0,0,0.5*s,0,P); },col],
+  ],lw);
+  c.fillStyle='rgba(255,255,255,0.55)'; c.beginPath(); c.ellipse(-0.2*s,-0.25*s,0.1*s,0.06*s,-0.5,0,P); c.fill();
+  c.strokeStyle=INK; c.fillStyle=INK; c.lineWidth=lw*1.2; c.lineCap='round';
+  for(const m of [-1,1]){
+    if(happy){ c.beginPath(); c.arc(m*0.19*s,-0.1*s,0.06*s,Math.PI*1.1,Math.PI*1.9); c.stroke(); }
+    else { c.beginPath(); c.arc(m*0.19*s,-0.12*s,0.065*s,0,P); c.fill(); }
+  }
+  c.fillStyle='rgba(255,110,140,0.5)'; for(const m of [-1,1]){ c.beginPath(); c.arc(m*0.3*s,0.06*s,0.06*s,0,P); c.fill(); }
+  const o=Math.max(0.12,open), y0=0.06*s, bw=0.2*s+o*0.06*s;
+  c.beginPath(); c.moveTo(-bw,y0); c.lineTo(0,y0-0.08*s-o*0.14*s); c.lineTo(bw,y0); c.lineTo(0,y0+0.06*s+o*0.2*s); c.closePath();
+  c.fillStyle='#ffa630'; c.fill(); c.lineWidth=lw; c.stroke();
+  if(o>0.25){ const k=0.62; c.beginPath(); c.moveTo(-bw*k,y0); c.lineTo(0,y0-(0.08*s+o*0.14*s)*k+0.02*s); c.lineTo(bw*k,y0); c.lineTo(0,y0+(0.06*s+o*0.2*s)*k); c.closePath(); c.fillStyle='#e8394d'; c.fill(); }
+  else { c.beginPath(); c.moveTo(-bw,y0); c.lineTo(bw,y0); c.stroke(); }
+  c.restore();
+}
+
+/* ---------- state ---------- */
+const bird={x:0,y:0,vx:0,vy:0,dir:1,rot:0,flap:0,blink:3,sing:0,sit:false};
+const target={x:0,y:0};
+let started=false, t=0, phase='twigs', phT=0, nightT=0, swapped=false;
+let twigs=[], nestN=0, nestShown=0, sticks=[], rimSticks=[], nestBounce=0;
+let eggs=[], eggsReady=0, warm=0, hatched=0, chicks=[];
+let worms=[], carry=null, movers=[], parts=[], flown=0;
+let heartT=0, peepT=2, ambT=3, rustleCD=0, tikT=0, lastChirp=0;
+const keys={left:false,right:false,up:false,down:false};
+
+function newRound(first){
+  if(!first){ side=-side; season=(season+1)%SEASONS.length; }
+  layout();
+  phase='twigs'; phT=0; nestN=0; nestShown=0; sticks=[]; rimSticks=[]; eggs=[]; chicks=[]; warm=0; hatched=0; carry=null; movers=[];
+  twigs=[]; worms=HILLS.map(()=>({state:'in',timer:0,out:0}));
+  for(let i=0;i<3;i++) spawnTwig(first?0.2+i*0.25:1.4+i*0.25);
+}
+function twigPos(tw){ return tw.bush!=null?[bushPos(tw.bush),groundY-B*0.95]:[sideX(tw.u),groundY+B*0.38]; } // ground twigs lie in the grass in front of the molehills
+function spawnTwig(delay){
+  let best=null;
+  for(let k=0;k<30;k++){
+    const tw=Math.random()<0.3?{bush:Math.floor(Math.random()*BUSHES.length)}:{u:rand(0.08,0.92)};
+    if(tw.u!=null&&Math.abs(tw.u-0.8)<0.07) continue;
+    const [x,y]=twigPos(tw);    if(twigs.some(o=>{ const [ox,oy]=twigPos(o); return dist(x,y,ox,oy)<B*1.6; })) continue;
+    if(dist(x,y,bird.x,bird.y)<B*1.6) continue;
+    best=tw; break;
+  }
+  if(!best) best={u:rand(0.08,0.7)};
+  best.rot=rand(-0.35,0.35); best.t0=t+delay; best.ph=rand(0,P);
+  twigs.push(best);
+}
+const twigsLeft=()=>NEED-nestN-(carry&&carry.k==='twig'?1:0)-movers.filter(m=>m.k==='twig').length;
+function eggX(i){ return nx+(i-1)*NW*0.3; }
+function chickY(ch){ return ny-B*0.12-(ch.stretch||0)*B*0.14; }
+function chickSize(ch){ return B*0.44*(1+0.12*ch.fed); }
+
+/* ---------- particles ---------- */
+function sparkles(x,y,n,s){
+  const cols=['#ffd23f','#fff3a6','#ff8fc7','#7fd0ff','#8fe07a'];
+  for(let i=0;i<n;i++){ const a=rand(0,P), v=rand(60,200)*(s||1);
+    parts.push({k:'spark',x,y,vx:Math.cos(a)*v,vy:Math.sin(a)*v-60,g:200,r:rand(0.08,0.14)*B,life:0,max:rand(0.6,1),col:cols[i%cols.length],rot:rand(0,P)}); }
+}
+function puff(x,y,n,col){
+  for(let i=0;i<n;i++){ const a=rand(-Math.PI,0), v=rand(40,120);
+    parts.push({k:'dot',x,y,vx:Math.cos(a)*v,vy:Math.sin(a)*v,g:300,r:rand(0.04,0.08)*B,life:0,max:rand(0.4,0.7),col}); }
+}
+function shells(x,y){
+  for(let i=0;i<7;i++){ const a=rand(-Math.PI*0.9,-Math.PI*0.1), v=rand(80,200);
+    parts.push({k:'shell',x,y,vx:Math.cos(a)*v,vy:Math.sin(a)*v,g:600,r:rand(0.06,0.1)*B,life:0,max:0.9,rot:rand(0,P),col:'#cdeeff'}); }
+}
+function fallLeaf(x,y,kind){
+  const s=S(), col=kind==='petal'?s.dots||'#ffb3d1':kind==='snow'?'#fff':s.leaf[Math.floor(Math.random()*s.leaf.length)];
+  parts.push({k:kind,x,y,vx:rand(-15,15),vy:kind==='snow'?rand(25,45):rand(30,50),g:0,r:(kind==='snow'?rand(0.03,0.06):rand(0.07,0.1))*B,life:0,max:kind==='snow'?20:12,col,rot:rand(0,P),ph:rand(0,P)});
+}
+function updateParts(dt){
+  for(const p of parts){
+    p.life+=dt;
+    if(p.k==='leaf'||p.k==='petal'||p.k==='snow'){ p.x+=(p.vx+Math.sin(t*1.5+p.ph)*25*MW)*dt; p.y+=p.vy*dt; p.rot+=dt*1.5; if(p.y>groundY+B*0.2) p.life=p.max; }
+    else if(p.k==='heart'){ p.y-=B*0.9*dt; p.x+=Math.sin(p.life*5+p.ph)*B*0.4*dt; }
+    else if(p.k==='ring'){}
+    else { p.vy+=p.g*dt; p.vx*=1-1.5*dt; p.x+=p.vx*dt; p.y+=p.vy*dt; p.rot=(p.rot||0)+3*dt; }
+  }
+  parts=parts.filter(p=>p.life<p.max);
+  if(parts.length>260) parts.splice(0,parts.length-260);
+}
+function drawParts(){
+  for(const p of parts){
+    const a=clamp((1-p.life/p.max)*1.5,0,1);
+    c.save(); c.globalAlpha=a;
+    if(p.k==='spark'){ c.translate(p.x,p.y); c.rotate(p.rot); starPath(0,0,p.r,p.r*0.45); c.fillStyle=p.col; c.fill(); }
+    else if(p.k==='dot'){ c.fillStyle=p.col; c.beginPath(); c.arc(p.x,p.y,p.r,0,P); c.fill(); }
+    else if(p.k==='heart'){ c.globalAlpha=clamp(1-p.life/p.max,0,1); heartPath(p.x,p.y,p.r); c.fillStyle='#ff4d6d'; c.fill(); c.strokeStyle=INK; c.lineWidth=Math.max(1.2,p.r*0.15); c.stroke(); }
+    else if(p.k==='shell'){ c.translate(p.x,p.y); c.rotate(p.rot); c.beginPath(); c.moveTo(-p.r,p.r*0.6); c.lineTo(0,-p.r); c.lineTo(p.r,p.r*0.6); c.closePath(); c.fillStyle=p.col; c.fill(); c.strokeStyle=INK; c.lineWidth=1.5; c.stroke(); }
+    else if(p.k==='snow'){ c.globalAlpha=0.9; c.fillStyle='#fff'; c.beginPath(); c.arc(p.x,p.y,p.r,0,P); c.fill(); c.strokeStyle='rgba(120,150,190,0.5)'; c.lineWidth=1; c.stroke(); }
+    else if(p.k==='leaf'||p.k==='petal'){ c.globalAlpha=1; c.translate(p.x,p.y); c.rotate(p.rot); c.beginPath(); c.ellipse(0,0,p.r,p.r*(p.k==='petal'?0.7:0.5),0,0,P); c.fillStyle=p.col; c.fill(); c.strokeStyle=INK; c.lineWidth=Math.max(1,p.r*0.18); c.stroke(); }
+    else if(p.k==='ring'){ const e=p.life/p.max; c.globalAlpha=1-e; c.strokeStyle='#fff'; c.lineWidth=Math.max(2,B*0.06); c.beginPath(); c.arc(p.x,p.y,B*(0.2+e*0.6),0,P); c.stroke(); }
+    c.restore();
+  }
+}
+
+/* ---------- scenery ---------- */
+const clouds=[{x:0.15,y:0.12,s:1},{x:0.55,y:0.22,s:0.75},{x:0.85,y:0.08,s:0.9}];
+const TUFTS=Array.from({length:26},(_,i)=>({u:(i+Math.random()*0.6)/26,v:Math.random(),f:Math.random()<0.4,col:['#ff6b9a','#ffd23f','#fff','#8a6cff'][i%4]}));
+const DOTS=Array.from({length:22},()=>[rand(-1.3,1.3),rand(-1.6,0.9)]);
+function drawSky(){
+  const s=S(), g=c.createLinearGradient(0,0,0,groundY);
+  g.addColorStop(0,s.sky[0]); g.addColorStop(1,s.sky[1]);
+  c.fillStyle=g; c.fillRect(0,0,W,groundY+2);
+  // sun
+  const sx=sideX(0.28), sy=topY+B*1.5, sr=B*0.55;
+  c.save(); c.translate(sx,sy); c.rotate(RM?0:t*0.15);
+  c.strokeStyle=s.sun; c.lineWidth=B*0.08; c.lineCap='round';
+  for(let i=0;i<10;i++){ const a=i/10*P; c.beginPath(); c.moveTo(Math.cos(a)*sr*1.3,Math.sin(a)*sr*1.3); c.lineTo(Math.cos(a)*sr*1.6,Math.sin(a)*sr*1.6); c.stroke(); }
+  c.restore();
+  c.beginPath(); c.arc(sx,sy,sr,0,P); c.fillStyle=s.sun; c.fill(); c.strokeStyle=INK; c.lineWidth=Math.max(2,B*0.05); c.stroke();
+  // clouds
+  for(const cl of clouds){
+    const w=B*2*cl.s, x=((cl.x*(W+w*2)+t*B*0.15*cl.s)%(W+w*2))-w, y=cl.y*H+topY*0.5;
+    c.fillStyle='rgba(255,255,255,0.9)'; c.beginPath();
+    for(const [dx,dy,r] of [[0,0,0.28],[0.3,-0.12,0.32],[0.62,0,0.26]]){ c.moveTo(x+(dx+r)*w,y+dy*w); c.arc(x+dx*w,y+dy*w,r*w,0,P); }
+    c.rect(x,y,w*0.62,w*0.26); c.fill('nonzero');
+  }
+  // hills
+  for(const [col,base,amp,k,o] of [[s.hillFar,groundY-B*1.6,B*0.6,0.006,1],[s.hillNear,groundY-B*0.7,B*0.45,0.009,3]]){
+    c.fillStyle=col; c.beginPath(); c.moveTo(0,groundY+2);
+    for(let x=0;x<=W+20;x+=20) c.lineTo(x,base+Math.sin(x*k*(70/B)+o)*amp);
+    c.lineTo(W,groundY+2); c.closePath(); c.fill();
+  }
+}
+function drawGround(){
+  const s=S(), lw=Math.max(2,B*0.05);
+  c.fillStyle=s.grass; c.beginPath(); c.moveTo(0,H);
+  for(let x=0;x<=W+20;x+=20) c.lineTo(x,groundY+Math.sin(x/B*1.3)*B*0.05);
+  c.lineTo(W,H); c.closePath(); c.fill(); c.strokeStyle=INK; c.lineWidth=lw; c.stroke();
+  c.fillStyle=s.grassD; c.fillRect(0,groundY+(H-groundY)*0.55,W,H);
+  for(const tf of TUFTS){
+    const x=tf.u*W, y=groundY+B*0.25+tf.v*(H-groundY-B*0.4);
+    c.strokeStyle=s.grassD; c.lineWidth=Math.max(1.5,B*0.04); c.lineCap='round';
+    for(const d of [-1,0,1]){ c.beginPath(); c.moveTo(x+d*B*0.06,y); c.lineTo(x+d*B*0.12,y-B*0.14); c.stroke(); }
+    if(tf.f&&s.flowers){ c.beginPath(); c.arc(x,y-B*0.17,B*0.06,0,P); c.fillStyle=tf.col; c.fill(); c.strokeStyle=INK; c.lineWidth=1.5; c.stroke(); }
+  }
+}
+function drawTree(){
+  const s=S(), lw=Math.max(2,B*0.05);
+  // trunk
+  c.beginPath(); c.moveTo(treeX-B*0.34,groundY+B*0.12); c.quadraticCurveTo(treeX-B*0.2,ny,treeX-B*0.2,cy0);
+  c.lineTo(treeX+B*0.2,cy0); c.quadraticCurveTo(treeX+B*0.2,ny,treeX+B*0.34,groundY+B*0.12); c.closePath();
+  c.fillStyle='#8a5a3a'; c.fill(); c.strokeStyle=INK; c.lineWidth=lw; c.stroke();
+  c.strokeStyle='#6b4228'; c.lineWidth=Math.max(1.5,B*0.04);
+  for(const [u,v] of [[-0.06,0.3],[0.08,0.55],[-0.04,0.78]]){ const y=lerp(ny,groundY,v); c.beginPath(); c.moveTo(treeX+u*B,y); c.quadraticCurveTo(treeX+(u+0.06)*B,y+B*0.15,treeX+u*B,y+B*0.3); c.stroke(); }
+  // branch to the nest
+  const bx1=nx-side*NW*0.62, by0=ny+ND*0.78, by1=ny+ND*0.62;
+  c.lineCap='round';
+  const br=()=>{ c.beginPath(); c.moveTo(treeX,by0+B*0.05); c.quadraticCurveTo((treeX+bx1)/2,by0+B*0.1,bx1,by1); };
+  br(); c.strokeStyle=INK; c.lineWidth=B*0.22+lw*2; c.stroke();
+  br(); c.strokeStyle='#8a5a3a'; c.lineWidth=B*0.22; c.stroke();
+  // little leaves at the end of the branch
+  if(season!==3) for(const [dx,dy,a] of [[0,-0.18,-0.6],[-0.15,-0.08,-1.4]]){
+    c.save(); c.translate(bx1+side*dx*B,by1+dy*B); c.rotate(a*side); c.beginPath(); c.ellipse(0,0,B*0.16,B*0.08,0,0,P);
+    c.fillStyle=s.leaf[0]; c.fill(); c.strokeStyle=INK; c.lineWidth=lw*0.8; c.stroke(); c.restore();
+  }
+  // canopy
+  const cs=canopy();
+  c.strokeStyle=INK; c.lineWidth=lw*2; for(const [x,y,r] of cs){ c.beginPath(); c.arc(x,y,r,0,P); c.stroke(); }
+  cs.forEach(([x,y,r],i)=>{ c.beginPath(); c.arc(x,y,r,0,P); c.fillStyle=s.leaf[i%s.leaf.length]; c.fill(); });
+  c.fillStyle=s.leafHi; c.globalAlpha=0.7;
+  for(const [x,y,r] of cs){ c.beginPath(); c.ellipse(x-r*0.3,y-r*0.35,r*0.35,r*0.2,-0.5,0,P); c.fill(); }
+  c.globalAlpha=1;
+  if(season===3){ c.fillStyle='rgba(150,180,215,0.35)'; for(const [x,y,r] of cs){ c.beginPath(); c.ellipse(x+r*0.2,y+r*0.45,r*0.6,r*0.3,0,0,P); c.fill(); } }
+  if(s.dots){ for(const [dx,dy] of DOTS){ const x=cx0+dx*B*side, y=cy0+dy*B; c.beginPath(); c.arc(x,y,B*0.07,0,P); c.fillStyle=s.dots; c.fill(); c.strokeStyle=INK; c.lineWidth=1.5; c.stroke(); } }
+}
+function drawBushes(){
+  const s=S(), lw=Math.max(2,B*0.05);
+  for(let i=0;i<BUSHES.length;i++){
+    const x=bushPos(i), y=groundY+B*0.1, cs=[[0,-0.45,0.55],[-0.55,-0.25,0.42],[0.55,-0.25,0.42]];
+    c.strokeStyle=INK; c.lineWidth=lw*2; for(const [dx,dy,r] of cs){ c.beginPath(); c.arc(x+dx*B,y+dy*B,r*B,0,P); c.stroke(); }
+    cs.forEach(([dx,dy,r],k)=>{ c.beginPath(); c.arc(x+dx*B,y+dy*B,r*B,0,P); c.fillStyle=darken(s.leaf[k%s.leaf.length],0.88); c.fill(); });
+    c.fillStyle=s.leafHi; c.globalAlpha=0.6; c.beginPath(); c.ellipse(x-B*0.15,y-B*0.7,B*0.2,B*0.1,-0.4,0,P); c.fill(); c.globalAlpha=1;
+  }
+}
+function drawHills(){
+  const lw=Math.max(2,B*0.05);
+  worms.forEach((w,i)=>{
+    const x=hillPos(i), hy=groundY-B*0.12;
+    c.beginPath(); c.ellipse(x,groundY+B*0.08,B*0.48,B*0.26,0,Math.PI,0); c.closePath();
+    c.fillStyle=season===3?'#e3ecf4':'#a06a42'; c.fill(); c.strokeStyle=INK; c.lineWidth=lw; c.stroke();
+    if(season!==3){ c.fillStyle='#c48a5a'; for(const [dx,dy] of [[-0.2,0.0],[0.15,-0.05],[0.25,0.04]]){ c.beginPath(); c.arc(x+dx*B,groundY+dy*B,B*0.035,0,P); c.fill(); } }
+    c.beginPath(); c.ellipse(x,hy,B*0.17,B*0.06,0,0,P); c.fillStyle='#3d2416'; c.fill();
+    if(w.out>0.01&&w.state!=='pulling'){
+      const pts=[]; for(let k=0;k<=8;k++){ const u=k/8; pts.push([x+Math.sin(t*5+u*3+i)*B*0.07*u*MW,hy-u*w.out*B*0.45]); }
+      drawWorm(pts,B*0.075);
+    }
+  });
+}
+function nestDims(){ const f=0.4+0.6*nestShown; return [NW/2*f,B*0.17*f,ND*f,f]; }
+function nestFrontPath(rx,ry,dp){
+  c.beginPath(); c.moveTo(nx-rx,ny); c.ellipse(nx,ny,rx,ry,0,Math.PI,0,true);
+  c.bezierCurveTo(nx+rx,ny+dp*0.7,nx+rx*0.55,ny+dp,nx,ny+dp); c.bezierCurveTo(nx-rx*0.55,ny+dp,nx-rx,ny+dp*0.7,nx-rx,ny); c.closePath();
+}
+function nestSquash(){ const k=1+Math.sin(nestBounce*Math.PI*2)*0.1*nestBounce*MW; c.translate(nx,ny+ND*0.5); c.scale(1/Math.sqrt(k),k); c.translate(-nx,-ny-ND*0.5); }
+function drawNestBack(){
+  const lw=Math.max(2,B*0.05);
+  if(nestN===0){ // the ghost of the nest to build
+    c.save(); c.setLineDash([B*0.12,B*0.1]); c.lineDashOffset=-t*B*0.3; c.strokeStyle='rgba(255,255,255,'+(0.55+0.3*Math.sin(t*4))+')'; c.lineWidth=Math.max(2.5,B*0.06);
+    nestFrontPath(NW/2,B*0.17,ND); c.stroke(); c.beginPath(); c.ellipse(nx,ny,NW/2,B*0.17,0,Math.PI,P); c.stroke(); c.restore();
+    return;
+  }
+  const [rx,ry,,f]=nestDims();
+  c.save(); nestSquash();
+  c.beginPath(); c.ellipse(nx,ny,rx,ry,0,0,P); c.fillStyle='#6b4423'; c.fill();
+  c.strokeStyle=INK; c.lineWidth=B*0.13*f+lw*2; c.stroke(); c.strokeStyle='#a06a3a'; c.lineWidth=B*0.13*f; c.stroke();
+  c.restore();
+}
+function drawNestFront(){
+  if(nestN===0) return;
+  const lw=Math.max(2,B*0.05), [rx,ry,dp,f]=nestDims();
+  c.save(); nestSquash();
+  nestFrontPath(rx,ry,dp); c.fillStyle='#a8703f'; c.fill();
+  c.save(); nestFrontPath(rx,ry,dp); c.clip(); c.lineCap='round';
+  for(const s of sticks){ const x=nx+s.x*rx, y=ny+s.y*dp, l=s.len*B*f; c.strokeStyle=s.col; c.lineWidth=B*0.06;
+    c.beginPath(); c.moveTo(x-Math.cos(s.a)*l/2,y-Math.sin(s.a)*l/2); c.lineTo(x+Math.cos(s.a)*l/2,y+Math.sin(s.a)*l/2); c.stroke(); }
+  c.restore();
+  nestFrontPath(rx,ry,dp); c.strokeStyle=INK; c.lineWidth=lw; c.stroke();
+  c.beginPath(); c.ellipse(nx,ny,rx,ry,0,Math.PI,0,true); c.strokeStyle=INK; c.lineWidth=B*0.13*f+lw*2; c.stroke();
+  c.strokeStyle='#b07a45'; c.lineWidth=B*0.13*f; c.stroke();
+  c.lineCap='round';
+  for(const s of rimSticks){
+    const x=nx+Math.cos(s.th)*rx, y=ny+Math.sin(s.th)*ry, l=s.len*B*f;
+    const p=()=>{ c.beginPath(); c.moveTo(x-Math.cos(s.a)*l/2,y-Math.sin(s.a)*l/2); c.lineTo(x+Math.cos(s.a)*l/2,y+Math.sin(s.a)*l/2); };
+    p(); c.strokeStyle=INK; c.lineWidth=B*0.055+lw*1.6; c.stroke(); p(); c.strokeStyle=s.col; c.lineWidth=B*0.055; c.stroke();
+  }
+  c.restore();
+}
+function drawHint(){
+  const show=(carry&&(carry.k==='twig'||carry.pull>=0.35))||(phase==='eggs'&&t>eggsReady&&!bird.sit);
+  if(!show) return;
+  const r=B*1.5*(1+0.06*Math.sin(t*5)*MW);
+  c.save(); c.setLineDash([B*0.18,B*0.14]); c.lineDashOffset=-t*B*0.5;
+  c.strokeStyle='rgba(255,255,255,0.85)'; c.lineWidth=Math.max(3,B*0.07); c.beginPath(); c.arc(nx,ny+B*0.1,r,0,P); c.stroke(); c.restore();
+  // bouncing arrow above the nest
+  const ay=ny-B*1.75-Math.abs(Math.sin(t*4))*B*0.25*MW, s=B*0.28;
+  c.beginPath(); c.moveTo(nx-s,ay-s*0.6); c.lineTo(nx+s,ay-s*0.6); c.lineTo(nx,ay+s*0.6); c.closePath();
+  c.fillStyle='#fff'; c.fill(); c.strokeStyle=INK; c.lineWidth=Math.max(2,B*0.05); c.lineJoin='round'; c.stroke();
+}
+// progress row below the counter: twigs, then eggs, then worms
+function drawProgress(){
+  let n=0, done=0, icon=null;
+  if(phase==='twigs'||phase==='built'){ n=NEED; done=nestN; icon='twig'; }
+  else if(phase==='eggs'||phase==='hatched'){ n=EGGS; done=hatched; icon='egg'; }
+  else if(phase==='feed'){ n=EGGS*FEED; done=chicks.reduce((a,ch)=>a+ch.fed,0); icon='worm'; }
+  if(!n) return;
+  const sz=Math.min(30,(Math.min(W-160,W*0.8))/n), y=topY+sz*0.6, x0=W/2-(n-1)*sz/2;
+  for(let i=0;i<n;i++){
+    const x=x0+i*sz; c.save(); c.globalAlpha=i<done?1:0.35;
+    if(i<done&&i===done-1&&phase!=='built'){ const k=1+0.15*Math.sin(t*6)*MW; c.translate(x,y); c.scale(k,k); c.translate(-x,-y); }
+    if(icon==='twig') drawTwig(x,y,sz*0.85,-0.5);
+    else if(icon==='egg'){ if(i<done) drawChick(x,y+sz*0.05,sz*0.75,0,true); else drawEgg(x,y+sz*0.4,sz*0.8,0,0); }
+    else { const pts=[]; for(let k=0;k<=6;k++){ const u=k/6; pts.push([x-sz*0.3+u*sz*0.6,y+Math.sin(u*P)*sz*0.12]); } drawWorm(pts,sz*0.1); }
+    c.restore();
+  }
+}
+function drawNight(){
+  if(nightT<=0) return;
+  const a=Math.sin(Math.PI*clamp(nightT/2.6,0,1))*0.8;
+  c.fillStyle='rgba(22,24,70,'+a+')'; c.fillRect(0,0,W,H);
+  c.globalAlpha=a; c.fillStyle='#fff';
+  for(let i=0;i<30;i++){ const x=((i*137.5)%100)/100*W, y=((i*61.8)%100)/100*groundY*0.8; c.fillRect(x,y,2.5,2.5); }
+  const mx=W/2, my=H*0.25;
+  c.save(); c.beginPath(); c.rect(0,0,W,H); c.arc(mx+B*0.3,my-B*0.15,B*0.5,0,P); c.clip('evenodd');
+  c.beginPath(); c.arc(mx,my,B*0.6,0,P); c.fillStyle='#fff3b0'; c.fill(); c.restore();
+  c.globalAlpha=1;
+}
+
+/* ---------- sound ---------- */
+let AC=null, soundOn=true, noiseBuf=null, master=null;
+function ac(){
+  if(!AC){
+    // iPhone: play like a media app, so the silent switch doesn't mute the game
+    try{ if(navigator.audioSession) navigator.audioSession.type='playback'; }catch(e){}
+    try{ AC=new (window.AudioContext||window.webkitAudioContext)(); }catch(e){ return null; }
+    // iPhone: play one silent sample inside the first tap to unlock audio
+    try{ const b=AC.createBuffer(1,1,22050), s=AC.createBufferSource(); s.buffer=b; s.connect(AC.destination); s.start(0); }catch(e){}
+  }
+  if(AC.state!=='running') AC.resume().catch(()=>{});
+  return AC;
+}
+['touchend','click'].forEach(ev=>document.addEventListener(ev,()=>ac(),{passive:true}));
+function out(){
+  const a=ac(); if(!a) return null;
+  if(!master){ master=a.createGain(); master.gain.value=soundOn?1:0; master.connect(a.destination); }
+  return master;
+}
+function setMaster(on){ if(master&&AC) master.gain.setTargetAtTime(on?1:0,AC.currentTime,0.08); }
+function tone(freq,start,dur,type='sine',vol=0.2,slideTo){
+  if(!soundOn) return; const a=ac(), m=out(); if(!a||!m) return;
+  const t0=a.currentTime+start, o=a.createOscillator(), g=a.createGain();
+  o.type=type; o.frequency.setValueAtTime(freq,t0);
+  if(slideTo) o.frequency.exponentialRampToValueAtTime(slideTo,t0+dur);
+  g.gain.setValueAtTime(0.0001,t0); g.gain.exponentialRampToValueAtTime(vol,t0+0.015); g.gain.exponentialRampToValueAtTime(0.0001,t0+dur);
+  o.connect(g).connect(m); o.start(t0); o.stop(t0+dur+0.05);
+}
+function noise(start,dur,vol,f0,f1){
+  if(!soundOn) return; const a=ac(), m=out(); if(!a||!m) return;
+  if(!noiseBuf){ noiseBuf=a.createBuffer(1,a.sampleRate,a.sampleRate); const d=noiseBuf.getChannelData(0); for(let i=0;i<d.length;i++) d[i]=Math.random()*2-1; }
+  const t0=a.currentTime+start, s=a.createBufferSource(), f=a.createBiquadFilter(), g=a.createGain();
+  s.buffer=noiseBuf; f.type='bandpass'; f.Q.value=1; f.frequency.setValueAtTime(f0,t0);
+  if(f1) f.frequency.exponentialRampToValueAtTime(f1,t0+dur);
+  g.gain.setValueAtTime(0.0001,t0); g.gain.exponentialRampToValueAtTime(vol,t0+0.01); g.gain.exponentialRampToValueAtTime(0.0001,t0+dur);
+  s.connect(f).connect(g).connect(m); s.start(t0); s.stop(t0+dur+0.05);
+}
+const chirp=(st,f,vol)=>tone(f,st,0.08,'sine',vol||0.12,f*1.45);
+const PENTA=[523,587,659,784,880,1047,1175,1319,1568];
+const SFX={
+  chirp(){ chirp(0,2400); chirp(0.11,2900); },
+  song(){ [2300,2800,2500,3100,2700,3400].forEach((f,i)=>chirp(i*0.1,f,0.11)); },
+  flap(){ noise(0,0.08,0.035,900,500); },
+  snap(){ noise(0,0.05,0.25,3200); tone(900,0,0.06,'square',0.04,600); },
+  place(n){ noise(0,0.1,0.15,700); tone(260,0,0.09,'triangle',0.15,180); tone(PENTA[n%PENTA.length],0.05,0.25,'triangle',0.13); },
+  built(){ [523,659,784,1047].forEach((f,i)=>tone(f,i*0.1,0.3,'triangle',0.14)); [523,659,784].forEach(f=>tone(f,0.42,0.8,'triangle',0.08)); setTimeout(()=>SFX.song(),700); },
+  pop(){ tone(380,0,0.12,'sine',0.2,900); },
+  tik(){ tone(1600,0,0.03,'square',0.03); },
+  crack(){ noise(0,0.12,0.3,2600,1400); noise(0.08,0.1,0.25,2000); tone(3200,0.18,0.09,'sine',0.08,3700); tone(3300,0.3,0.09,'sine',0.08,3800); },
+  boing(){ tone(170,0,0.32,'triangle',0.18,520); },
+  plop(){ tone(700,0,0.08,'sine',0.18,240); noise(0,0.06,0.12,1200); },
+  gulp(){ tone(420,0,0.16,'sine',0.22,140); tone(3200,0.2,0.08,'sine',0.07,3800); tone(3400,0.3,0.08,'sine',0.07,4000); },
+  full(){ [1047,1319,1568,2093].forEach((f,i)=>tone(f,i*0.06,0.14,'triangle',0.09)); },
+  peep(){ tone(3300,0,0.07,'sine',0.045,3800); tone(3300,0.1,0.07,'sine',0.045,3900); },
+  grow(){ tone(500,0,0.25,'triangle',0.12,1000); noise(0,0.2,0.1,2000,4000); },
+  whoosh(){ noise(0,0.45,0.13,500,2200); },
+  pling(){ tone(1319,0,0.3,'triangle',0.12); tone(1976,0.08,0.4,'triangle',0.09); },
+  rustle(){ noise(0,0.25,0.07,4200,2400); },
+  night(){ [784,659,523].forEach((f,i)=>tone(f,i*0.35,0.5,'sine',0.08)); },
+};
+
+/* ---------- game logic ---------- */
+function start(){ if(started) return; started=true; titleEl.classList.add('gone'); ac(); out(); }
+function pickUp(){
+  const [bx,by]=beakPos(), near=(x,y,r)=>Math.min(dist(x,y,bird.x,bird.y),dist(x,y,bx,by))<r;
+  if(carry||bird.sit) return;
+  if(phase==='twigs'){
+    for(let i=0;i<twigs.length;i++){ const tw=twigs[i]; if(t<tw.t0+0.15) continue; const [x,y]=twigPos(tw);
+      if(near(x,y,B*0.95)){
+        twigs.splice(i,1); carry={k:'twig'}; SFX.snap(); bird.sing=0.25; sparkles(x,y,6,0.6);
+        if(twigs.length<Math.min(3,twigsLeft())) spawnTwig(0.8);
+        return;
+      } }
+  } else if(phase==='feed'){
+    const need=chicks.reduce((a,ch)=>a+FEED-ch.fed-ch.pending,0);
+    if(need<=0) return;
+    worms.forEach((w,i)=>{ if(carry||w.state!=='up'||w.out<0.6) return;
+      const x=hillPos(i), y=groundY-B*0.12-w.out*B*0.45;
+      if(near(x,y,B*0.95)){ carry={k:'worm',pull:0,hill:i}; w.state='pulling'; SFX.boing(); bird.sing=0.3; } });
+  }
+}
+function deliver(){
+  if(!carry||dist(bird.x,bird.y,nx,ny)>B*1.6) return;
+  const [bx,by]=beakPos();
+  if(carry.k==='twig'){ movers.push({k:'twig',x0:bx,y0:by,tx:nx+rand(-0.4,0.4)*NW/2,ty:ny,t:0,dur:0.35}); carry=null; }
+  else if(carry.pull>=0.35){
+    const hungry=chicks.filter(ch=>ch.fed+ch.pending<FEED);
+    if(!hungry.length) return;
+    hungry.sort((a,b)=>(a.fed+a.pending)-(b.fed+b.pending)||Math.abs(eggX(a.i)-bird.x)-Math.abs(eggX(b.i)-bird.x));
+    const ch=hungry[0]; ch.pending++;
+    movers.push({k:'worm',x0:bx,y0:by,ch,t:0,dur:0.35}); carry=null;
+  }
+}
+function landMover(m){
+  if(m.k==='twig'){
+    nestN++; nestBounce=1;
+    const cols=['#7a4a26','#c99460','#8a5a32','#b98250'];
+    for(let k=0;k<3;k++) sticks.push({x:rand(-0.9,0.9),y:rand(0.1,0.85),a:rand(-0.5,0.5),len:rand(0.35,0.6),col:cols[(nestN+k)%4]});
+    rimSticks.push({th:rand(0.12,0.88)*Math.PI,a:rand(-0.6,0.6),len:rand(0.45,0.65),col:cols[nestN%4]});
+    SFX.place(nestN-1); sparkles(m.tx,m.ty,8,0.7);
+    if(nestN>=NEED){ phase='built'; phT=0; SFX.built(); bird.sing=1.4; sparkles(nx,ny,24,1.4); twigs=[]; }
+  } else {
+    const ch=m.ch; ch.pending--; ch.fed++; ch.gulp=1; SFX.gulp(); sparkles(eggX(ch.i),chickY(ch),6,0.6);
+    if(ch.fed>=FEED){ ch.full=true; setTimeout(()=>SFX.full(),300); }
+    if(chicks.every(c=>c.full)){ phase='grow'; phT=0; }
+  }
+}
+function crackEgg(i){
+  const e=eggs[i]; e.gone=true; shells(eggX(i),ny-B*0.2); SFX.crack(); sparkles(eggX(i),ny-B*0.2,10,0.9);
+  chicks.push({i,fed:0,pending:0,full:false,t0:t,stretch:0,gulp:0,ph:rand(0,P),state:'nest',ft:0,pal:YOUNG[i%YOUNG.length]});
+}
+function update(dt){
+  t+=dt; phT+=dt;
+  // keyboard moves the target
+  const kx=(keys.right?1:0)-(keys.left?1:0), ky=(keys.down?1:0)-(keys.up?1:0);
+  if(kx||ky){ target.x+=kx*B*7*dt; target.y+=ky*B*7*dt; }
+  target.x=clamp(target.x,minX(),maxX()); target.y=clamp(target.y,minY(),maxY());
+  // the bird flies after the target (a soft spring)
+  const seatX=nx, seatY=ny-B*0.18;
+  bird.sit=phase==='eggs'&&t>eggsReady&&dist(target.x,target.y,seatX,seatY)<B*1.7&&dist(bird.x,bird.y,seatX,seatY)<B*1.7;
+  const tx=bird.sit?seatX:target.x, ty=bird.sit?seatY:target.y;
+  bird.vx+=((tx-bird.x)*40-bird.vx*11)*dt; bird.vy+=((ty-bird.y)*40-bird.vy*11)*dt;
+  const sp=Math.hypot(bird.vx,bird.vy), cap=Math.max(B*11,Math.hypot(W,H)*0.6); if(sp>cap){ bird.vx*=cap/sp; bird.vy*=cap/sp; }
+  bird.x+=bird.vx*dt; bird.y+=bird.vy*dt;
+  if(!bird.sit){ bird.x=clamp(bird.x,minX(),maxX()); bird.y=clamp(bird.y,minY(),maxY()); }
+  if(bird.vx>B*0.6) bird.dir=1; else if(bird.vx<-B*0.6) bird.dir=-1;
+  const rt=bird.sit?0:clamp(bird.vy/(B*14),-0.35,0.35)*bird.dir;
+  bird.rot+=(rt-bird.rot)*Math.min(1,dt*8);
+  const f0=bird.flap; bird.flap+=dt*(bird.sit?0:13+Math.min(sp/B,8)*1.3);
+  if(Math.floor(f0/P)!==Math.floor(bird.flap/P)&&sp>B*4) SFX.flap();
+  bird.blink-=dt; if(bird.blink<0) bird.blink=rand(2,5);
+  bird.sing=Math.max(0,bird.sing-dt);
+  // leaves rustle when the bird flies through the tree
+  rustleCD-=dt;
+  if(started&&sp>B*3&&rustleCD<=0&&canopy().some(([x,y,r])=>dist(bird.x,bird.y,x,y)<r)){
+    rustleCD=0.3; SFX.rustle(); if(season!==3){ fallLeaf(bird.x,bird.y,'leaf'); fallLeaf(bird.x+B*0.2,bird.y-B*0.1,'leaf'); } else for(let i=0;i<4;i++) fallLeaf(bird.x+rand(-1,1)*B*0.3,bird.y,'snow');
+  }
+  // falling petals, leaves or snow
+  const fk=S().fall;
+  if(fk&&Math.random()<dt*(fk==='snow'?5:0.8)*(RM?0.5:1)){
+    if(fk==='snow') fallLeaf(rand(0,W),-10,'snow'); else { const [x,y,r]=canopy()[Math.floor(Math.random()*CANOPY.length)]; fallLeaf(x+rand(-r,r)*0.7,y+r*0.5,fk); }
+  }
+  if(started){ pickUp(); deliver(); }
+  if(carry&&carry.k==='worm'&&carry.pull<0.35){
+    carry.pull+=dt;
+    if(carry.pull>=0.35){ const w=worms[carry.hill]; w.state='in'; w.out=0; w.timer=1.4; SFX.plop(); puff(hillPos(carry.hill),groundY-B*0.12,8,season===3?'#fff':'#8a5a3a'); }
+  }
+  for(const m of movers){ m.t+=dt; if(m.t>=m.dur&&!m.done){ m.done=true; landMover(m); } }
+  movers=movers.filter(m=>!m.done);
+  nestBounce=Math.max(0,nestBounce-dt*2.5);
+  nestShown+=(nestN/NEED-nestShown)*Math.min(1,dt*6);
+  // phases
+  if(phase==='built'&&phT>1.4){
+    phase='eggs'; phT=0; eggsReady=t+0.45*EGGS+0.2; warm=0; hatched=0;
+    const order=[0,1,2].sort(()=>Math.random()-0.5);
+    eggs=[0,1,2].map(i=>({t0:t+0.2+i*0.45,popped:false,ord:order.indexOf(i),gone:false}));
+  }
+  if(phase==='eggs'){
+    for(const e of eggs) if(!e.popped&&t>=e.t0){ e.popped=true; SFX.pop(); }
+    if(bird.sit){
+      warm=Math.min(1,warm+dt/WARM_T);
+      heartT-=dt; if(heartT<=0){ heartT=0.35; parts.push({k:'heart',x:nx+rand(-0.5,0.5)*B,y:ny-B*0.7,r:B*0.13,life:0,max:1.2,ph:rand(0,P)}); }
+      tikT-=dt; if(tikT<=0){ tikT=0.45; SFX.tik(); }
+    }
+    while(hatched<EGGS&&warm*EGGS>=hatched+1-1e-6){ crackEgg(eggs.findIndex(e=>e.ord===hatched)); hatched++; }
+    if(hatched>=EGGS){ phase='hatched'; phT=0; target.y=Math.min(target.y,ny-B*1.6); }
+  }
+  if(phase==='hatched'&&phT>1.2){ phase='feed'; phT=0; worms.forEach((w,i)=>{ w.state='in'; w.timer=0.2+i*0.5; w.out=0; }); }
+  if(phase==='feed'){
+    for(const w of worms){
+      if(w.state==='in'){ w.timer-=dt; if(w.timer<=0){ w.state='up'; SFX.pop(); } }
+      else if(w.state==='up') w.out=Math.min(1,w.out+dt*2.5);
+    }
+    peepT-=dt; if(peepT<=0){ peepT=rand(1.4,2.6); if(chicks.some(ch=>!ch.full)) SFX.peep(); }
+  } else for(const w of worms) if(w.state==='up'){ w.out=Math.max(0,w.out-dt*2); if(w.out<=0) w.state='in'; } // back into the ground
+  for(const ch of chicks){
+    ch.gulp=Math.max(0,ch.gulp-dt*2);
+    const want=phase==='feed'&&!ch.full&&carry&&carry.k==='worm'?1:0;
+    ch.stretch+=(want-ch.stretch)*Math.min(1,dt*6);
+    if(ch.state==='flying'){ ch.ft+=dt; if(ch.ft>=2.2){ ch.state='gone'; flown++; numEl.textContent=flown; countEl.classList.remove('bump'); void countEl.offsetWidth; countEl.classList.add('bump'); SFX.pling(); } }
+  }
+  if(phase==='grow'){
+    if(carry){ carry=null; } // nobody is hungry any more
+    chicks.forEach((ch,k)=>{
+      if(ch.state==='nest'&&phT>0.4+k*0.45){ ch.state='grown'; sparkles(eggX(ch.i),ny-B*0.3,14,1); SFX.grow(); }
+      const fly=0.4+EGGS*0.45+0.5+k*0.7;
+      if(ch.state==='grown'&&phT>fly){ ch.state='flying'; ch.ft=0; ch.x0=eggX(ch.i); ch.y0=ny-B*0.3; SFX.whoosh(); chirp(0,2600+k*300); bird.sing=0.4; }
+    });
+    if(chicks.every(ch=>ch.state==='gone')&&phT>5){ phase='night'; nightT=0.001; swapped=false; SFX.song(); setTimeout(()=>SFX.night(),900); }
+  }
+  if(nightT>0){
+    nightT+=dt;
+    if(nightT>=1.3&&!swapped){ swapped=true; newRound(false); }
+    if(nightT>=2.6){ nightT=0; SFX.song(); bird.sing=1; }
+  }
+  // distant birds now and then
+  if(started){ ambT-=dt; if(ambT<=0){ ambT=rand(4,9); const f=rand(2600,3600); chirp(0,f,0.025); chirp(0.12,f*1.1,0.02); } }
+  updateParts(dt);
+}
+function drawChicks(){
+  for(const ch of chicks){
+    const x=eggX(ch.i);
+    if(ch.state==='nest'){
+      const born=Math.min(1,(t-ch.t0)/0.3), s=chickSize(ch)*(RM?1:0.6+0.4*born)*(1+ch.gulp*0.15);
+      const open=ch.full?0:Math.max(ch.stretch,phase==='feed'?0.3+0.3*Math.sin(t*5+ch.ph):0.2);
+      const bob=ch.full?Math.abs(Math.sin(t*4+ch.ph))*B*0.05*MW:0;
+      drawChick(x+Math.sin(t*9+ch.ph)*B*0.02*ch.stretch*MW,chickY(ch)-bob,s,open,ch.full||phase==='hatched');
+    } else if(ch.state==='grown'){
+      drawBird(x,ny-B*0.25,B*0.6,{sit:true,dir:-side,pal:ch.pal,happy:true});
+    }
+  }
+}
+function drawFlyingChicks(){
+  for(const ch of chicks){
+    if(ch.state!=='flying') continue;
+    const e=ease(Math.min(1,ch.ft/2.2)), ex=side>0?-B*1.5:W+B*1.5, ey=topY+B*0.5+ch.i*B*0.6;
+    const qx=lerp(ch.x0,ex,0.5), qy=Math.min(ch.y0,ey)-B*1.5;
+    const x=(1-e)*(1-e)*ch.x0+2*(1-e)*e*qx+e*e*ex, y=(1-e)*(1-e)*ch.y0+2*(1-e)*e*qy+e*e*ey;
+    drawBird(x,y,B*0.6,{dir:-side,wing:0.2+Math.sin(t*22+ch.i)*0.75*MW,pal:ch.pal,sing:0});
+  }
+}
+function drawMovers(){
+  for(const m of movers){
+    const e=ease(Math.min(1,m.t/m.dur));
+    if(m.k==='twig'){ const x=lerp(m.x0,m.tx,e), y=lerp(m.y0,m.ty,e)-Math.sin(e*Math.PI)*B*0.4; drawTwig(x,y,B*0.85*(1-e*0.3),e*2); }
+    else { const tx=eggX(m.ch.i), ty=chickY(m.ch), x=lerp(m.x0,tx,e), y=lerp(m.y0,ty,e)-Math.sin(e*Math.PI)*B*0.3;
+      const pts=[]; for(let k=0;k<=6;k++){ const u=k/6; pts.push([x+Math.sin(t*10+u*4)*B*0.05,y-B*0.25+u*B*0.35*(1-e*0.5)]); } drawWorm(pts,B*0.06); }
+  }
+}
+function drawBirdNow(){
+  const bob=bird.sit?Math.sin(t*2.5)*B*0.02*MW:Math.sin(t*3)*B*0.04*MW;
+  drawBird(bird.x,bird.y+bob,B,{dir:bird.dir,rot:bird.rot,wing:0.2+Math.sin(bird.flap)*0.75*(RM?0.6:1),sit:bird.sit,blink:bird.blink<0.12,happy:bird.sit,sing:bird.sing,
+    carry:carry?(carry.k==='twig'?'twig':(carry.pull>=0.35?'worm':null)):null});
+  if(carry&&carry.k==='worm'&&carry.pull<0.35){ // the worm stretches out of the molehill
+    const [bx,by]=beakPos(), hx=hillPos(carry.hill), hy=groundY-B*0.12, e=carry.pull/0.35, pts=[];
+    for(let k=0;k<=10;k++){ const u=k/10; pts.push([lerp(hx,bx,u)+Math.sin(u*Math.PI*3+t*20)*B*0.05*(1-e),lerp(hy,by,u)]); }
+    drawWorm(pts,B*0.075*(1-e*0.45));
+  }
+}
+function draw(){
+  c.setTransform(DPR,0,0,DPR,0,0);
+  drawSky();
+  drawTree();
+  drawGround();
+  drawBushes();
+  drawHills();
+  for(const tw of twigs){ if(t<tw.t0) continue; const [x,y]=twigPos(tw), e=Math.min(1,(t-tw.t0)/0.3), k=RM?1:ease(e);
+    drawTwig(x,y-Math.abs(Math.sin(t*2+tw.ph))*B*0.04*MW,B*0.8*k,tw.rot);
+    if(!carry&&((t+tw.ph)%2.2)<0.5){ c.save(); c.globalAlpha=0.9; starPath(x+B*0.3,y-B*0.2,B*0.12,B*0.05); c.fillStyle='#fff'; c.fill(); c.restore(); } }
+  drawNestBack();
+  if(bird.sit) drawBirdNow();
+  if(phase==='eggs') eggs.forEach((e,i)=>{ if(!e.popped||e.gone) return;
+    const pop=RM?1:Math.min(1,(t-e.t0)/0.25), local=clamp(warm*EGGS-e.ord,0,1);
+    const wob=Math.sin(t*(bird.sit?18:3)+i)*(bird.sit?0.05+local*0.12:0.03)*MW;
+    drawEgg(eggX(i),ny+B*0.1,B*0.42*(0.5+0.5*pop),wob,local>0.4?(local-0.4)/0.6:0); });
+  drawChicks();
+  drawNestFront();
+  drawHint();
+  drawMovers();
+  drawFlyingChicks();
+  if(!bird.sit) drawBirdNow();
+  drawParts();
+  drawNight();
+  drawProgress();
+}
+
+/* ---------- input ---------- */
+function aim(x,y){ target.x=clamp(x,minX(),maxX()); target.y=clamp(y,minY(),maxY()); }
+cv.addEventListener('pointerdown',e=>{
+  if(!started){ start(); return; }
+  aim(e.clientX,e.clientY);
+  parts.push({k:'ring',x:e.clientX,y:e.clientY,life:0,max:0.5});
+  if(t-lastChirp>0.6){ lastChirp=t; SFX.chirp(); bird.sing=0.25; }
+  try{ cv.setPointerCapture(e.pointerId); }catch(err){}
+});
+cv.addEventListener('pointermove',e=>{ if(started&&(e.pointerType==='mouse'||e.buttons||e.pressure>0)) aim(e.clientX,e.clientY); });
+const KEYMAP={arrowleft:'left',a:'left',arrowright:'right',d:'right',arrowup:'up',w:'up',arrowdown:'down',s:'down'};
+addEventListener('keydown',e=>{
+  const k=e.key.toLowerCase(), dir=KEYMAP[k];
+  if(dir){ e.preventDefault(); if(!started){ start(); return; } keys[dir]=true; }
+  else if(k===' '||k==='enter'){
+    if(document.activeElement===soundBtn) return;
+    e.preventDefault(); if(e.repeat) return;
+    if(!started){ start(); return; } SFX.song(); bird.sing=0.8;
+  }
+});
+addEventListener('keyup',e=>{ const dir=KEYMAP[e.key.toLowerCase()]; if(dir) keys[dir]=false; });
+addEventListener('blur',()=>{ keys.left=keys.right=keys.up=keys.down=false; });
+
+const ICON_ON='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 9.5h3.5l5-4v13l-5-4H3.5z" fill="currentColor"/><path d="M15.5 9a4.5 4.5 0 0 1 0 6M18.5 6.5a8 8 0 0 1 0 11"/></svg>';
+const ICON_OFF='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 9.5h3.5l5-4v13l-5-4H3.5z" fill="currentColor"/><path d="M16 9.5l5 5M21 9.5l-5 5"/></svg>';
+soundBtn.innerHTML=ICON_ON;
+soundBtn.addEventListener('click',()=>{
+  soundOn=!soundOn; soundBtn.innerHTML=soundOn?ICON_ON:ICON_OFF;
+  soundBtn.setAttribute('aria-pressed',soundOn); soundBtn.setAttribute('aria-label',soundOn?'Geluid staat aan':'Geluid staat uit');
+  out(); setMaster(soundOn); if(soundOn) SFX.chirp();
+});
+document.addEventListener('visibilitychange',()=>setMaster(soundOn&&!document.hidden));
+
+addEventListener('resize',resize); resize();
+newRound(true);
+bird.x=W*0.4; bird.y=H*0.62; target.x=bird.x; target.y=bird.y;
+let last=performance.now();
+function frame(now){
+  let dt=(now-last)/1000; last=now; if(dt>0.05) dt=0.05; if(dt<0) dt=0;
+  update(dt); draw();
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>

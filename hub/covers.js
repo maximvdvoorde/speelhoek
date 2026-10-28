@@ -16,6 +16,13 @@ const jobs=[
     const n=Math.min(4,Number(((await p.getAttribute('#game','aria-label')).match(/\((\d+)\)\./)||[])[1]||3));
     for(let i=0;i<n;i++){ await p.mouse.click(520,90); await p.waitForTimeout(200); }
     await p.waitForTimeout(500); }],
+ ['vogelnestje',path.join(ROOT,'games/vogelnestje.html'),'.title,.hud,.count{display:none!important}',800,
+  async p=>{ // start, then sweep the mouse along the grass and up to the nest a few times, so the nest grows; end with a twig in the beak
+    await p.mouse.click(320,240); await p.waitForTimeout(400);
+    for(let r=0;r<4;r++){
+      for(let x=40;x<=600;x+=28){ await p.mouse.move(x,395); await p.waitForTimeout(45); }
+      await p.mouse.move(r<3?407:300,r<3?221:250,{steps:8}); await p.waitForTimeout(r<3?900:350);
+    } }],
 ];
 for(const [id,file,css,wait,act] of jobs){
   const p=await b.newPage({viewport:{width:640,height:480}});
