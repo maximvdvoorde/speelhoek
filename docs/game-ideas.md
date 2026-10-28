@@ -11,7 +11,7 @@ When a game is done, set its status to ✅ here. The prompts of finished games s
 | Monster Kitchen | vector | ✅ |
 | Plassen Springer | pixel art | ✅ |
 | Meteorietenregen | vector (space) | ✅ |
-| Plasticsoep Opruimer | vector or pixel art | ⬜ |
+| Plasticsoep Opruimer | vector | ✅ |
 | Fruit Fabriek | vector | ⬜ |
 | Eendjes Vissen | vector | ✅ |
 | Vogelnestje | to decide | ⬜ (mechanics still open) |

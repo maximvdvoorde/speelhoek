@@ -13,6 +13,7 @@ Small browser games for the kids, bundled in one menu page.
   - `plassen-springer.html` – pixel-art puddle jumping on an endless rainy street
   - `meteorietenregen.html` – a rocket hops between 3 lanes on a tilted space plane, dodging meteorites and catching stars
   - `eendjes-vissen.html` – kermis duck fishing: hook rubber ducks, flip them over, and fill the prize shelves
+  - `plasticsoep-opruimer.html` – a yellow submarine swims up with each tap and nets floating plastic; the sea turns clear blue and fills with fish and coral as the count rises
 - `hub/speelhoek.template.html` – the menu page; `__FONT_CSS__` and `__GAMES__` are replaced by the build
 - `hub/build.py` – bundles every game (plus covers and embedded fonts) into the web app in `site/`
 - `hub/covers.js` – takes a cover screenshot of each game (needs Node + Playwright: `npm install`)
