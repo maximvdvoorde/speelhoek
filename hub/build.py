@@ -19,7 +19,7 @@ def font(family, weight, file):
     return ("@font-face{font-family:'%s';font-style:normal;font-weight:%s;font-display:swap;"
             "src:url(data:font/woff2;base64,%s) format('woff2')}" % (family, weight, b64))
 font_css = (font('Baloo 2', '700 800', 'baloo2-latin.woff2') + font('Press Start 2P', '400', 'pressstart2p-latin.woff2')
-            + font('Playwrite BE VLG', '400', 'playwritebevlg.woff2'))
+            + font('Playwrite BE VLG', '400', 'playwritebevlg.woff2') + font('Teachers', '700', 'teachers-latin.woff2'))
 google_fonts = re.compile(r'<link[^>]*fonts\.(?:googleapis|gstatic)\.com[^>]*>\s*')
 
 data = []

@@ -6,7 +6,7 @@
 <title>Klankenjacht</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@700;800&family=Playwrite+BE+VLG&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@700;800&family=Playwrite+BE+VLG&family=Teachers:wght@700&display=swap" rel="stylesheet">
 <style>
 /* Layout: one full-screen canvas (a paper forest at dusk: the owl on its branch, 6 picture cards on strings and mossy stones); listen button by the owl, sound button top-right; title card on top */
 :root{
@@ -71,6 +71,9 @@ const SOUNDS=[
   {k:'t', hold:false, words:['tent','tomaat','taart']},
   {k:'b', hold:false, words:['bal','boot','boom','banaan']},
 ];
+// How the voice should say a word, only for words it gets wrong (the card and the sign keep the real spelling).
+// A doubled vowel often helps: 'naaald' makes the voice hold the long aa.
+const SAY={naald:'naaald'};
 const HOLD_ROUNDS=8;                                     // rounds with only holdable sounds before k, p, t, b join
 const LOOKALIKE={v:'f',f:'v',s:'z',z:'s',p:'b',b:'p'};  // sounds that are too close to mix in one round
 
@@ -602,7 +605,8 @@ function newRound(){
   need=n; found=0; basket.items=[]; phase='enter'; pt=0; signT=0; signImg=makeSign();
 }
 // speech engines can't say a sound on its own ("mmm" comes out as letter names), so the owl uses a whole example word
-function intro(){ signBump=0.6; say('Ik zoek woorden die beginnen zoals '+example+'... '+example+'!',0.85); }
+const spoken=w=>SAY[w]||w;
+function intro(){ signBump=0.6; say('Ik zoek woorden die beginnen zoals '+spoken(example)+'... '+spoken(example)+'!',0.85); }
 function repeat(){ if(phase==='play'||phase==='enter'){ owl.hoot=0.35; intro(); } }
 function start(){
   if(started) return; started=true; titleEl.classList.add('gone'); ac(); startAmb();
@@ -613,10 +617,10 @@ function tapCard(k){
   lookAt(k.x,k.y); SFX.rustle();
   if(k.ok){
     const p=cardPose(k); k.fx=p.x; k.fy=p.y; k.st='fly'; k.ft=0;
-    say(k.word+'!'); sparkles(k.x,k.y,8,0.7);
+    say(spoken(k.word)+'!',0.8); sparkles(k.x,k.y,8,0.7);
   } else {
     k.wig=0.9; owl.tilt=1; SFX.wobble(); leafPuff(k.x,k.y-S*0.4,3);
-    say(k.word+'... nee, dat begint niet zoals '+example+'.',0.85);
+    say(spoken(k.word)+'... nee, dat begint niet zoals '+spoken(example)+'.',0.85);
   }
 }
 const FLY=0.9;
@@ -674,8 +678,9 @@ function drawCards(flying){
   }
 }
 /* ---------- letter sign ----------
-   capital, small letter and the script letter children learn to write in Flemish schools (Playwrite BE VLG) */
-const SCRIPT='"Playwrite BE VLG",cursive', ROUND='"Baloo 2","Comic Sans MS",system-ui,sans-serif';
+   capital and small letter in Teachers (a font made for learning to read), and the script letter
+   children learn to write in Flemish schools (Playwrite BE VLG) */
+const SCRIPT='"Playwrite BE VLG",cursive', PRINT='"Teachers","Baloo 2",system-ui,sans-serif';
 let signImg=null, signT=9, signBump=0;
 function makeSign(){
   const pad=12, cg=document.createElement('canvas'); cg.width=Math.ceil((signW+pad*2)*DPR); cg.height=Math.ceil((signH+pad*2)*DPR);
@@ -688,14 +693,14 @@ function makeSign(){
   g.strokeStyle='rgba(61,127,214,0.35)'; g.lineWidth=Math.max(1,signH*0.012);
   for(const y of [base-xh*2,base-xh,base,base+xh]){ g.beginPath(); g.moveTo(lx,y); g.lineTo(lx+lw,y); g.stroke(); }
   g.textAlign='center'; g.textBaseline='alphabetic';
-  g.fillStyle='#3a2a4a'; g.font='800 '+Math.round(signH*0.7)+'px '+ROUND;
-  g.fillText(cur.k.toUpperCase(),signW*0.18,signH*0.74); g.fillText(cur.k,signW*0.45,signH*0.74);
+  g.fillStyle='#3a2a4a'; g.font='700 '+Math.round(signH*0.62)+'px '+PRINT;
+  g.fillText(cur.k.toUpperCase(),signW*0.17,signH*0.72); g.fillText(cur.k,signW*0.46,signH*0.72);
   g.fillStyle='#2d5fa8'; g.font='400 '+Math.round(xh*3.3)+'px '+SCRIPT;
   g.fillText(cur.k,lx+lw/2,base);
   g=c; return cg;
 }
 // the script font may arrive after the first sign was drawn: redraw it then
-if(document.fonts&&document.fonts.load) Promise.all([document.fonts.load('400 40px "Playwrite BE VLG"'),document.fonts.load('800 40px "Baloo 2"')]).then(()=>{ if(cur) signImg=makeSign(); }).catch(()=>{});
+if(document.fonts&&document.fonts.load) Promise.all([document.fonts.load('400 40px "Playwrite BE VLG"'),document.fonts.load('700 40px "Teachers"')]).then(()=>{ if(cur) signImg=makeSign(); }).catch(()=>{});
 function drawSign(){
   if(!signImg||phase==='title') return;
   const e=clamp(signT/0.5,0,1), b=e-1, sy=RM?1:1+2.7*b*b*b+1.7*b*b;
