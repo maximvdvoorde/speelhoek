@@ -166,7 +166,9 @@ function drawSub(){
   box(); c.strokeStyle=INK; c.lineWidth=w*2; c.stroke();
   // the mouth: a dark gap behind the jaw, steel teeth on top, a hinged scoop jaw below
   const open=sub.mouth*0.62;
-  c.fillStyle='#4a2338'; c.beginPath(); c.moveTo(s*0.25,s*0.08); c.lineTo(s*1.0,s*0.06); c.lineTo(s*0.98,s*0.62); c.lineTo(s*0.25,s*0.45); c.closePath(); c.fill();
+  // the gap follows the jaw, so nothing peeks out under it when the mouth is closed
+  const jp=(x,y)=>[s*0.22+x*Math.cos(open)-y*Math.sin(open),s*0.3+x*Math.sin(open)+y*Math.cos(open)];
+  c.fillStyle='#4a2338'; c.beginPath(); c.moveTo(s*0.25,s*0.08); c.lineTo(s*1.0,s*0.06); c.lineTo(...jp(s*0.75,-s*0.05)); c.lineTo(...jp(0,-s*0.05)); c.closePath(); c.fill();
   c.fillStyle='#e8eaf2'; c.strokeStyle=INK; c.lineWidth=w;
   for(let i=0;i<4;i++){ const x=s*(0.42+i*0.15); c.beginPath(); c.moveTo(x,s*0.07); c.lineTo(x+s*0.12,s*0.07); c.quadraticCurveTo(x+s*0.06,s*0.24,x,s*0.07); c.closePath(); c.fill(); c.stroke(); }
   c.beginPath(); c.moveTo(s*0.25,s*0.09); c.lineTo(s*1.0,s*0.06); c.lineWidth=w*2; c.stroke();
