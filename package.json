@@ -1,0 +1,12 @@
+{
+  "name": "speelhoek",
+  "private": true,
+  "description": "Tooling only (cover + icon screenshots); the games themselves use no packages",
+  "scripts": {
+    "covers": "node hub/covers.js",
+    "icons": "node hub/icons.js"
+  },
+  "devDependencies": {
+    "playwright": "1.58.2"
+  }
+}

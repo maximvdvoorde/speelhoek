@@ -1,0 +1,6 @@
+# built by hub/build.py (GitHub Actions builds and publishes it)
+site/
+node_modules/
+.DS_Store
+Thumbs.db
+*.log
