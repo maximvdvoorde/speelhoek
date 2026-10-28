@@ -23,6 +23,8 @@ const jobs=[
       for(let x=40;x<=600;x+=28){ await p.mouse.move(x,395); await p.waitForTimeout(45); }
       await p.mouse.move(r<3?407:300,r<3?221:250,{steps:8}); await p.waitForTimeout(r<3?900:350);
     } }],
+ ['klankenjacht',path.join(ROOT,'games/klankenjacht.html'),'.title,.hud,.listen{display:none!important}',500,
+  async p=>{ await p.mouse.click(320,460); await p.waitForTimeout(1500); }], // start; the cards pop in
 ];
 for(const [id,file,css,wait,act] of jobs){
   const p=await b.newPage({viewport:{width:640,height:480}});

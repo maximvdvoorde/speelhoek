@@ -15,6 +15,7 @@ When a game is done, set its status to ✅ here. The prompts of finished games s
 | Fruit Fabriek | vector | ✅ |
 | Eendjes Vissen | vector | ✅ |
 | Vogelnestje | vector | ✅ |
+| Klankenjacht | paper cut-out | ✅ |
 
 ---
 
@@ -162,29 +163,177 @@ After we choose, build it and follow the "Adding a new game" checklist in CLAUDE
 ```
 
 ---
-
+ 
+## 6. Klankenjacht
+ 
+**Idea:** a friendly owl says a sound, and the kid taps the pictures that start with that sound. This trains first-sound awareness, the step before learning to read.
+**Style:** paper cut-out (see CLAUDE.md). The pictures must be instantly recognizable, so this needs clear, simple shapes rather than chunky pixels.
+ 
+**Prompt:**
+ 
+```
+Read CLAUDE.md, then build a new educational game: games/klankenjacht.html, Dutch title "Klankenjacht". It trains first-sound awareness (beginklank) for a 5-year-old in Flanders.
+ 
+Concept: an owl sits on a branch in a forest at dusk. Around it, 6 picture cards hang on strings or lie on mossy stones. The owl says a sound and an example word, then the kid taps every picture that starts with that sound. 2 or 3 of the 6 cards are correct.
+ 
+Speech: use the Web Speech API in Dutch (prefer an nl-BE voice, fall back to nl-NL). Isolated consonants are hard for speech engines, so let the owl say a stretched example instead: "Ik zoek woorden met mmm... zoals mmmaan!". Tapping any card says its word out loud. Add a big "luister nog eens" (owl/ear icon) button to repeat. If no Dutch voice is available, show the letter big next to the owl as a fallback, and tell me in your summary.
+ 
+Word lists: start with sounds you can hold ("zingende klanken"), because they are easiest: m, s, v, r, l, f, n, z. Later add k, p, t, b. Use only nouns that are easy to draw and unambiguous in Flemish Dutch, for example:
+- m: maan, muis, mes, melk
+- s: sok, ster, slak, sla
+- v: vis, vos, vlag, voet
+- r: raket, ring, roos, regen
+- k: kat, koe, kip, kaas
+Make a data table so I can add words easily. Avoid words with confusing first sounds (no "sch", "ch", "g/ch").
+ 
+Rules: a correct tap makes the card flutter into the owl's basket with a hoot and a sparkle. A wrong tap makes the card wiggle while the owl says the word slowly ("vvvis... begint met vvv"). No penalty. When all correct cards are found, the owl does a happy dance and a new round starts with a new sound.
+ 
+Visual style: paper cut-out (see CLAUDE.md): layered paper trees, a paper moon, a slightly torn-edge look, soft drop shadows between layers, and gently swaying paper leaves. The picture cards are drawn in code in the same paper style.
+ 
+Sound: soft forest ambience, owl hoot, paper rustle on taps, happy jingle per round.
+ 
+Follow the "Adding a new game" checklist in CLAUDE.md.
+```
+ 
+---
+ 
+## 7. Patronentrein
+ 
+**Idea:** a train with wagons in a pattern (red-blue-red-blue-?), and the kid drags the right wagon into the gap. This trains logical thinking.
+**Style:** wooden toy, like painted wooden train sets. Pixel art would also work, but the wooden look suits a "toy" logic game and gives variation.
+ 
+**Prompt:**
+ 
+```
+Read CLAUDE.md, then build a new educational game: games/patronentrein.html, Dutch title "Patronentrein". It trains recognizing and continuing patterns for a 5-year-old.
+ 
+Concept: a wooden toy train stands on a wooden track across the screen. Its wagons carry blocks that form a pattern, with one or two wagons empty (shown as a dashed outline). Below, a toy box offers 3-4 candidate blocks. The kid drags the right block onto the empty wagon. When the pattern is complete, the train toots, the wheels turn and it chugs off screen, and a new train arrives.
+ 
+Difficulty, increasing slowly and dropping back after a few mistakes:
+1. AB patterns with color only (red-blue-red-blue-?)
+2. AB with shape only (circle-square-circle-?)
+3. AAB and ABB patterns
+4. ABC patterns
+5. Patterns where both color and shape matter
+6. The gap in the middle instead of at the end
+ 
+Rules: dropping the wrong block makes it bounce back to the toy box with a wooden "tok" and a short wobble. No penalty. Tapping the empty wagon gives a hint: the pattern blocks light up one by one with a little note each (do-re-do-re-...), so the kid can hear the pattern too.
+ 
+Dragging: works with touch and mouse, with big blocks. The block snaps into the wagon when dropped close enough (generous snap zone). Keyboard: arrow keys to choose a candidate, space to place it.
+ 
+Visual style: wooden toy (see CLAUDE.md): painted wood with visible grain, rounded edges, slightly worn paint, bright primary colors, chunky wheels with wooden pegs, a play mat or wooden floor background.
+ 
+Sound: wooden clacks, a "choo-choo" toot, a short melody that matches the pattern.
+ 
+Follow the "Adding a new game" checklist in CLAUDE.md.
+```
+ 
+---
+ 
+## 8. Krokodil Smikkel
+ 
+**Idea:** two piles of fish, and the crocodile always wants the bigger pile. The kid turns its mouth toward the pile with more. This trains comparing amounts ("more or less") and number sense.
+**Style:** chalkboard, like a drawing on the school blackboard. It makes a nice "school" link, and counting objects stays clear in colored chalk.
+ 
+**Prompt:**
+ 
+```
+Read CLAUDE.md, then build a new educational game: games/krokodil-smikkel.html, Dutch title "Krokodil Smikkel". It trains comparing quantities (meer / minder / evenveel) for a 5-year-old.
+ 
+Concept: a big green crocodile sits in the middle of a chalkboard. On the left and right are two piles of fish (1 to 10 each). The crocodile is greedy and always wants the bigger pile. The kid taps or swipes to turn its open mouth toward the side with more fish, then it chomps the whole pile with a big "SMIKKEL!".
+ 
+Levels:
+1. Small amounts (1-5) with a big difference
+2. Amounts 1-10, with the difference getting smaller
+3. Fish arranged messily, so the kid really has to count instead of comparing pile size
+4. One side shows a number instead of fish (a digit plus a dot pattern), then both sides are digits
+5. Sometimes both piles are equal: then the kid presses the middle button (a "=" sign / two equal fish icon), and the crocodile gets confused and eats both politely
+ 
+Rules: choosing the smaller pile makes the crocodile pause, count both piles out loud slowly (speech in Dutch, nl-BE preferred, plus the fish lighting up one by one), and then turn by itself to the right side. No penalty. A tummy meter fills up; when full, the crocodile takes a nap with snoring "Zzz" and a new round begins.
+ 
+Visual style: chalkboard (see CLAUDE.md): dark green-black board, colored chalk lines with slightly rough edges, chalk dust when things appear, a wooden frame around the board, chalk numbers drawn by hand (no font).
+ 
+Sound: chalk squeak (very soft), crunchy chomp, burp, counting voice.
+ 
+Follow the "Adding a new game" checklist in CLAUDE.md.
+```
+ 
+---
+ 
+## 9. Afvalheld
+ 
+**Idea:** trash falls onto a kitchen table and the kid drags each item to the right bin. Each bin "eats" what fits and spits out what doesn't. These are the real Belgian sorting rules, so the kid can help at home.
+**Style:** vector cartoon. Items like a milk carton, a can and a banana peel have to be recognizable at a glance, which is harder in pixel art.
+ 
+**Prompt:**
+ 
+```
+Read CLAUDE.md, then build a new educational game: games/afvalheld.html, Dutch title "Afvalheld". It teaches sorting household waste the way we do it in Flanders.
+ 
+Concept: a cosy kitchen. Along the bottom stand 4 bins with faces, each recognizable by color and icon (no reading needed):
+- PMD: the blue bag (plastic bottles and flasks, cans, drink cartons, yogurt pots, plastic foil)
+- Papier en karton: a paper bin / cardboard box (newspaper, cardboard box, egg carton, drawing paper)
+- GFT: the green bin (banana peel, apple core, egg shells, potato peel, coffee grounds, leaves)
+- Restafval: the grey bin (diaper, broken toy, chips bag, vacuum cleaner bag)
+Put all the item rules in one data table, because the rules differ a bit between municipalities and I may want to adjust them.
+ 
+Gameplay: one item at a time drops onto the table with a little bounce. The kid drags it to a bin. Big items, generous drop zones, and keyboard support (arrow keys to choose a bin, space to throw).
+ 
+Rules:
+- Right bin: the bin opens its lid, gobbles the item with a happy "nom", and a heart floats up. A counter (a little hero medal icon plus a number) goes up.
+- Wrong bin: the bin makes a funny face, spits the item back onto the table with a "bleh" and points with its eyes at the right bin. No penalty.
+- Every 10 items, the bins dance and a garbage truck drives by to empty them with a honk.
+- Optional later: a glass bottle bank and a "kringloop" (second-hand) box for toys that still work.
+ 
+Visual style: vector cartoon (see CLAUDE.md), like Monster Kitchen: thick outlines, cheerful kitchen, the bins as characters.
+ 
+Sound: lid creak, nom sounds, "bleh", the garbage truck engine and honk.
+ 
+Follow the "Adding a new game" checklist in CLAUDE.md.
+```
+ 
+---
+ 
+## 10. Mol zoekt huis
+ 
+**Idea:** a mole is underground and has to get home. The kid draws a path with a finger around rocks and roots, and the mole follows it. This trains planning and fine motor skills.
+**Style:** pixel art. An underground world made of tiles suits pixel art well, and drawing a path from tile to tile keeps it simple and clear.
+ 
+**Prompt:**
+ 
+```
+Read CLAUDE.md, then build a new educational game: games/mol-zoekt-huis.html, Dutch title "Mol zoekt huis". It trains planning a route and fine motor control for a 5-year-old.
+ 
+Concept: a side view of the underground, made of pixel-art tiles: soft brown soil, grey rocks, tree roots, a few buried treasures (a button, a marble, an old key). On top: grass, flowers and a sky. The mole pops out of a molehill on one side. Its cozy home (a little round door with a lamp) is somewhere else underground.
+ 
+Gameplay: the kid draws a tunnel with a finger or mouse, starting at the mole. The path snaps to the tile grid, so each touched soil tile is dug out (with a crumbly dig animation). Rocks and roots can't be dug: the path just doesn't continue through them, and they shake a little. When the tunnel connects to the home, the mole walks through it, waving, and goes inside. The lamp turns on and there is a little celebration.
+- Worms sit in some soil tiles: digging through them lets the mole collect them on the way (a bonus, not required).
+- An "undo" button removes the last part of the tunnel, and a "new" button starts the level over. No timer, no failing.
+- Keyboard: arrow keys dig tile by tile from the mole.
+ 
+Levels: start with an almost straight path, then add rocks to go around, then dead ends and choices, then two homes (pick one) or a friend to visit on the way. Generate levels randomly, but always make sure a path exists (check with a flood fill/BFS).
+ 
+Visual style: pixel art (see CLAUDE.md), like Plassen Springer: low-res canvas scaled up crisp, hand-typed sprite grids for the mole (with tiny glasses), worms and the home door.
+ 
+Sound: soft digging scrunch per tile, worm "slurp", little footsteps, a door creak and a cozy jingle when the mole gets home.
+ 
+Follow the "Adding a new game" checklist in CLAUDE.md.
+```
+ 
+---
+ 
 ## Template for a new idea
-
-Add new ideas as a numbered section above this one (idea + prompt), and a row in the table at the top.
-
+ 
 ```
 Read CLAUDE.md, then build a new game: games/<id>.html, Dutch title "<title>".
-
+ 
 Concept: <what you see, who the player is, what the goal is>
 Controls: <tap / swipe / drag / keys>
 Rules: <what happens on success, what happens on a "mistake" (always gentle), what goes up>
 Visual style: <vector cartoon or pixel art, colors, setting>
 Sound: <key sounds>
 <Attach a drawing if my son made one: copy its features faithfully.>
-
+ 
 Follow the "Adding a new game" checklist in CLAUDE.md.
 ```
-
-## Template for changing an existing game
-
-```
-Read CLAUDE.md, then change games/<id>.html ("<title>"):
-<what should change, and why: what my son did or didn't like>
-
-Then test, rebuild and publish (steps 3–7 of the "Adding a new game" checklist in CLAUDE.md).
-```
+ 
