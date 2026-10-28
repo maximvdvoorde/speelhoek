@@ -246,7 +246,7 @@ const PICS={
 // O is the owl size; the cards sit in a grid next to (landscape) or below (portrait) the owl.
 let W=0,H=0,DPR=1,O=100,ox=0,oy=0,branchY=0,trunkW=30,bx=0,bTop=0,BW=60,BH=40;
 let cols=3,rows=2,gx0=0,gy0=0,cellW=0,cellH=0,S=100,twigY=0,portrait=false,zw=0;
-let signX=0,signY=0,signW=0,signH=0;
+let signX=0,signY=0,signW=0,signH=0,signMax=0; // signH follows the letter (see makeSign), signMax is the room for the tallest one
 let scene=null, grain=null;
 function resize(){
   DPR=Math.min(2,window.devicePixelRatio||1);
@@ -271,10 +271,13 @@ function resize(){
   BW=O*0.62; BH=O*0.36; bx=ox+O*0.82; bTop=branchY-BH*0.9;
   // the letter sign hangs under the owl's branch (in portrait: in the gap above the cards)
   signY=branchY+O*0.14;
-  signH=portrait?clamp(twigY-signY-14,44,O*0.75):Math.min(O*0.7,zw*0.9/2.7);
-  signW=signH*2.7; signX=clamp(ox,signW/2+8,W-signW/2-8);
+  // landscape: leave room under the sign for the listen button (84 px) and a clear gap (the tallest sign is ~1.05 signMax)
+  signMax=portrait?clamp(twigY-signY-14,44,O*0.8):Math.max(44,Math.min(O*0.8,zw*0.9/2.3,(H-signY-130)/1.05));
+  signW=signMax*2.3; signH=signMax; // the real size follows the letter, see makeSign
+  // portrait: keep clear of the listen button at the right
+  signX=clamp(ox,signW/2+8,portrait?W-96-16-signW/2:W-signW/2-8);
   // the "listen again" button: under the sign in landscape, at the right of the basket in portrait
-  const lx=portrait?W-54:ox, ly=portrait?branchY-O*0.1:Math.min(H-54,signY+signH+54);
+  const lx=portrait?W-54:ox, ly=portrait?branchY-O*0.1:Math.min(H-54,signY+signMax*1.05+76);
   listenBtn.style.left=lx+'px'; listenBtn.style.top=ly+'px';
   if(!grain) grain=makeGrain();
   buildScene(); buildLeaves(); signImg=cur?makeSign():null;
@@ -682,21 +685,32 @@ function drawCards(flying){
 const SCRIPT='"Playwrite BE VLG",cursive', PRINT='"Teachers","Baloo 2",system-ui,sans-serif';
 let signImg=null, signT=9, signBump=0;
 function makeSign(){
-  const pad=12, cg=document.createElement('canvas'); cg.width=Math.ceil((signW+pad*2)*DPR); cg.height=Math.ceil((signH+pad*2)*DPR);
+  // Sizes come from the script font size fs; the print letters get the same n-height as the script.
+  // In Playwrite the n-height and the p-legs are both 0.52 em and the l-tops 1.02 em.
+  const fs=signMax*0.41, ps=fs*0.52/0.45, xh=fs*0.52, k=cur.k, K=k.toUpperCase();
+  g=document.createElement('canvas').getContext('2d');
+  const ink=(font,ch)=>{ g.font=font; const m=g.measureText(ch); return [m.actualBoundingBoxAscent||0,m.actualBoundingBoxDescent||0,m.width]; };
+  const PF='700 '+Math.round(ps)+'px '+PRINT, SF='400 '+Math.round(fs)+'px '+SCRIPT;
+  const ink3=[ink(PF,K),ink(PF,k),ink(SF,k)];
+  // the writing lines this letter needs: n-tops and baseline always, l-tops for tall letters, p-legs for letters with a leg
+  const tall=ink3[2][0]>xh*1.4, leg=ink3[2][1]>xh*0.4;
+  const lines=[-xh,0]; if(tall) lines.unshift(-fs*1.02); if(leg) lines.push(xh);
+  // the card fits the ink and the lines, with the same margin all around and the same gap between the letters
+  const top=Math.max(xh,tall?fs*1.02:0,...ink3.map(i=>i[0])), bot=Math.max(leg?xh:0,...ink3.map(i=>i[1]));
+  const m=fs*0.5, gap=fs*0.45, pad=12, lw=Math.max(ink3[2][2]+fs*0.6,fs*1.2);
+  const xK=m+ink3[0][2]/2, xk=m+ink3[0][2]+gap+ink3[1][2]/2, lx=m+ink3[0][2]+gap+ink3[1][2]+gap;
+  signW=lx+lw+m; signH=top+bot+m*2;
+  const cg=document.createElement('canvas'); cg.width=Math.ceil((signW+pad*2)*DPR); cg.height=Math.ceil((signH+pad*2)*DPR);
   g=cg.getContext('2d'); g.scale(DPR,DPR); g.translate(pad,pad);
   paperShadow(10,4);
-  g.fillStyle='#fbf3e2'; tornPath([0,0,signW,0,signW,signH,0,signH],signH*0.12,signH*0.012); g.fill();
+  g.fillStyle='#fbf3e2'; tornPath([0,0,signW,0,signW,signH,0,signH],signMax*0.12,signMax*0.012); g.fill();
   noShadow(); g.save(); g.clip(); g.fillStyle=grain; g.fillRect(0,0,signW,signH); g.restore();
-  // school writing lines behind the script letter. In Playwrite the n-height and the p-legs are both 0.52 em
-  // and the l-tops 1.02 em, so the lines sit on: l-tops, n-tops, baseline, p-legs
-  const lx=signW*0.68, lw=signW*0.28, base=signH*0.61, fs=signH*0.54, xh=fs*0.52;
-  g.strokeStyle='rgba(61,127,214,0.35)'; g.lineWidth=Math.max(1,signH*0.012);
-  for(const y of [base-fs*1.02,base-xh,base,base+xh]){ g.beginPath(); g.moveTo(lx,y); g.lineTo(lx+lw,y); g.stroke(); }
-  g.textAlign='center'; g.textBaseline='alphabetic';
-  g.fillStyle='#3a2a4a'; g.font='700 '+Math.round(signH*0.62)+'px '+PRINT;
-  g.fillText(cur.k.toUpperCase(),signW*0.17,base); g.fillText(cur.k,signW*0.46,base);
-  g.font='400 '+Math.round(fs)+'px '+SCRIPT;
-  g.fillText(cur.k,lx+lw/2,base);
+  const base=m+top;
+  g.strokeStyle='rgba(61,127,214,0.35)'; g.lineWidth=Math.max(1,signMax*0.012);
+  for(const y of lines){ g.beginPath(); g.moveTo(lx,base+y); g.lineTo(lx+lw,base+y); g.stroke(); }
+  g.textAlign='center'; g.textBaseline='alphabetic'; g.fillStyle='#3a2a4a';
+  g.font=PF; g.fillText(K,xK,base); g.fillText(k,xk,base);
+  g.font=SF; g.fillText(k,lx+lw/2,base);
   g=c; return cg;
 }
 // the script font may arrive after the first sign was drawn: redraw it then
