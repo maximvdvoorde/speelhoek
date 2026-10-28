@@ -16,6 +16,7 @@ When a game is done, set its status to ✅ here. The prompts of finished games s
 | Eendjes Vissen | vector | ✅ |
 | Vogelnestje | vector | ✅ |
 | Klankenjacht | paper cut-out | ✅ |
+| Patronentrein | wooden toy | ✅ |
 
 ---
 

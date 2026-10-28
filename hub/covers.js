@@ -25,6 +25,7 @@ const jobs=[
     } }],
  ['klankenjacht',path.join(ROOT,'games/klankenjacht.html'),'.title,.hud,.listen{display:none!important}',500,
   async p=>{ await p.mouse.click(320,460); await p.waitForTimeout(1500); }], // start; the cards pop in
+ ['patronentrein',path.join(ROOT,'games/patronentrein.html'),'.title,.hud{display:none!important}',3600], // the train arrives and the blocks pop into the toy box
 ];
 for(const [id,file,css,wait,act] of jobs){
   const p=await b.newPage({viewport:{width:640,height:480}});

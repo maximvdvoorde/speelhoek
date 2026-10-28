@@ -12,6 +12,7 @@ games = [
   {'id':'fruit','title':'Fruit Fabriek','file':'games/fruit-fabriek.html','css':''},
   {'id':'vogelnestje','title':'Vogelnestje','file':'games/vogelnestje.html','css':''},
   {'id':'klankenjacht','title':'Klankenjacht','file':'games/klankenjacht.html','css':''},
+  {'id':'patronentrein','title':'Patronen­trein','file':'games/patronentrein.html','css':''},
 ]
 # The fonts are embedded, so nothing has to come from Google Fonts (works offline)
 def font(family, weight, file):
