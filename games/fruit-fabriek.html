@@ -26,6 +26,7 @@ body{background:var(--wall);color:var(--ink);overflow:hidden;font-family:var(--f
 .btn:active{transform:translateY(3px);box-shadow:0 1px 0 var(--ink)}
 .btn:focus-visible{outline:4px solid var(--accent);outline-offset:3px}
 .btn svg{width:30px;height:30px}
+.btn[aria-pressed="false"]{background:#d9d2dc;color:#7a6a80}
 .title{position:fixed;left:0;right:0;top:calc(22% + env(safe-area-inset-top,0px));display:flex;flex-direction:column;align-items:center;gap:16px;text-align:center;pointer-events:none;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));transition:opacity .6s,transform .6s}
 .title h1{margin:0;font-weight:800;font-size:clamp(44px,11vw,96px);line-height:1;color:var(--gold);letter-spacing:.01em;-webkit-text-stroke:7px var(--ink);paint-order:stroke fill;text-shadow:0 6px 0 var(--ink)}
 .title p{margin:0;font-size:clamp(20px,3.4vw,28px);font-weight:800;line-height:1.1;background:var(--paper);border:3px solid var(--ink);box-shadow:0 4px 0 var(--ink);border-radius:30px;padding:10px 22px 8px}
@@ -42,6 +43,8 @@ body{background:var(--wall);color:var(--ink);overflow:hidden;font-family:var(--f
   <small>Tik om fruit in de doos te doen, tel mee, en druk op de groene knop als het klopt</small>
 </div>
 <div class="hud">
+  <button class="btn" id="sums" type="button" aria-label="Sommen staan aan" aria-pressed="true"></button>
+  <button class="btn" id="voice" type="button" aria-label="Stem staat aan" aria-pressed="true"></button>
   <button class="btn" id="sound" type="button" aria-label="Geluid staat aan" aria-pressed="true"></button>
 </div>
 
@@ -63,13 +66,16 @@ function rrect(x,y,w,h,r){ c.beginPath(); if(c.roundRect) c.roundRect(x,y,w,h,r)
 
 /* ---------- layout ---------- */
 // F is the fruit size; the machine, box and belt are all measured from it.
-const TOPB=84, MAXF=15;
-let W=0,H=0,DPR=1,F=60,lw=2,cx=0,hopTop=0,bodyTop=0,bodyBot=0,bodyW=0,chuteY=0,frontY=0,beltY=0,floorY=0,BW=0,trophyS=40,shelfY=62;
+const MAXF=15;
+// TOPB: top band for the buttons and the trophy shelf (on a narrow phone the shelf sits below the buttons)
+let TOPB=84,shelfX0=90,shelfX1=0,W=0,H=0,DPR=1,F=60,lw=2,cx=0,hopTop=0,bodyTop=0,bodyBot=0,bodyW=0,chuteY=0,frontY=0,beltY=0,floorY=0,BW=0,trophyS=40,shelfY=62;
 const btn={x:0,y:0,r:40,press:0};
 function resize(){
   DPR=Math.min(2,window.devicePixelRatio||1);
   W=innerWidth; H=innerHeight;
   cv.width=Math.round(W*DPR); cv.height=Math.round(H*DPR);
+  const narrow=W<600;
+  TOPB=narrow?150:84; shelfY=narrow?132:62; shelfX0=narrow?24:90; shelfX1=narrow?W-24:W-224;
   F=Math.min(W*0.15,(H-TOPB)/10.4,92);
   lw=Math.max(2,F*0.05);
   cx=W/2;
@@ -236,16 +242,44 @@ function pickVoice(){
   voice=vs.find(v=>lang(v)==='nl-be')||vs.find(v=>lang(v)==='nl-nl')||vs.find(v=>lang(v).startsWith('nl'))||null;
 }
 if(SS){ pickVoice(); try{ SS.addEventListener('voiceschanged',pickVoice); }catch(e){ SS.onvoiceschanged=pickVoice; } }
+function utter(text){
+  const u=new SpeechSynthesisUtterance(text); u.rate=1; u.pitch=1.15;
+  if(voice){ u.voice=voice; u.lang=voice.lang; } else u.lang='nl-BE';
+  return u;
+}
+let sayTimer=0;
 function say(text){
-  if(!SS||!voice||!soundOn||document.hidden) return; // no Dutch voice: the number popups still show the count
+  if(!SS||!voiceOn||!soundOn||document.hidden) return;
+  if(!voice) pickVoice();
+  // no Dutch voice among the listed ones: the number popups still show the count
+  // (iPad sometimes lists no voices at all; then we just ask for nl-BE and let it pick)
+  if(!voice&&SS.getVoices().length) return;
+  clearTimeout(sayTimer);
   try{
-    if(SS.speaking||SS.pending) SS.cancel();
-    const u=new SpeechSynthesisUtterance(text); u.voice=voice; u.lang=voice.lang; u.rate=1; u.pitch=1.15;
+    if(SS.paused) SS.resume(); // iPad can stay paused after the app was in the background
+    // Safari drops a speak() that comes right after cancel(), so give it a moment
+    if(SS.speaking||SS.pending){ SS.cancel(); sayTimer=setTimeout(()=>{ try{ SS.speak(utter(text)); }catch(e){} },80); }
+    else SS.speak(utter(text));
+  }catch(e){}
+}
+// iPad/iPhone: speech stays blocked until a speak() happens inside a real tap (touchend/click, not pointerdown).
+// The first tap speaks the box (or a silent blank) right there, which unlocks every later speak().
+let speechReady=false;
+function unlockSpeech(){
+  if(!SS||speechReady) return; speechReady=true;
+  try{
+    SS.cancel();
+    const live=started&&phase==='wait'&&voiceOn&&soundOn, u=utter(live?boxWords(box):' ');
+    if(!live) u.volume=0;
     SS.speak(u);
   }catch(e){}
 }
-// iPhone: speech only works after a first speak() inside a tap
-function unlockSpeech(){ if(!SS) return; try{ const u=new SpeechSynthesisUtterance(' '); u.volume=0; SS.speak(u); }catch(e){} }
+['touchend','click','keydown'].forEach(ev=>document.addEventListener(ev,unlockSpeech,{passive:true}));
+
+/* ---------- settings (kept on this device) ---------- */
+let voiceOn=true, sumsOn=true;
+try{ const s=JSON.parse(localStorage.getItem('fruit-fabriek')||'{}'); if(s.voice===false) voiceOn=false; if(s.sums===false) sumsOn=false; }catch(e){}
+function saveSettings(){ try{ localStorage.setItem('fruit-fabriek',JSON.stringify({voice:voiceOn,sums:sumsOn})); }catch(e){} }
 
 /* ---------- game state ---------- */
 let started=false, t=0, phase='in', phaseT=0, beltPos=0, beltMoving=false;
@@ -263,8 +297,8 @@ function newBox(){
   let n,a=0,b=0,op='';
   do{
     const r=Math.random();
-    if(maxSub&&r<0.3){ op='-'; a=ri(2,maxSub); b=ri(1,a-1); n=a-b; }
-    else if(maxSum&&r<0.6){ op='+'; n=ri(2,maxSum); a=ri(1,n-1); b=n-a; }
+    if(sumsOn&&maxSub&&r<0.3){ op='-'; a=ri(2,maxSub); b=ri(1,a-1); n=a-b; }
+    else if(sumsOn&&maxSum&&r<0.6){ op='+'; n=ri(2,maxSum); a=ri(1,n-1); b=n-a; }
     else { op=''; n=(maxN>5&&Math.random()<0.45)?maxN-ri(0,1):ri(1,maxN); }
   }while(n===prevN);
   prevN=n;
@@ -289,7 +323,7 @@ function puff(x,y){ parts.push({k:'puff',x,y,vx:rand(-10,10),vy:-F*0.9,r:F*0.16,
 
 function start(){
   if(started) return; started=true; titleEl.classList.add('gone'); ac(); startHum();
-  if(phase==='wait') say(boxWords(box)); else unlockSpeech();
+  if(phase==='wait') say(boxWords(box));
 }
 function landed(){ return box.fruits.filter(f=>f.landed).length; }
 function dropFruit(){
@@ -466,7 +500,7 @@ function gauge(x,y,r,ang){
   c.beginPath(); c.arc(x,y,r*0.12,0,P); c.fillStyle=INK; c.fill();
 }
 function trophyLayout(n){
-  const x0=90, len=Math.max(0,W-86-x0); let s=trophyS;
+  const x0=shelfX0, len=Math.max(0,shelfX1-x0); let s=trophyS;
   if(n*s*1.12>len) s=Math.max(trophyS*0.6,len/(n*1.12));
   return {s,x0,step:s*1.12,cap:Math.max(1,Math.floor(len/(trophyS*0.6*1.12)))};
 }
@@ -481,7 +515,7 @@ function drawMiniBox(x,y,s){
   starPath(x,y-h*0.5,s*0.22,s*0.1); c.fillStyle='#ffd23f'; c.fill(); c.lineWidth=l; c.stroke();
 }
 function drawShelf(){
-  const x0=78, x1=W-78, th=Math.max(8,F*0.14);
+  const x0=shelfX0-12, x1=shelfX1+12, th=Math.max(8,F*0.14);
   c.fillStyle='rgba(30,60,60,0.25)'; c.fillRect(x0+4,shelfY+th,x1-x0-8,th*0.7);
   for(const x of [x0+F*0.4,x1-F*0.4]){ c.beginPath(); c.moveTo(x,shelfY+th); c.lineTo(x,shelfY+th+F*0.35); c.lineTo(x-F*0.25,shelfY+th); c.closePath(); c.fillStyle='#9a5f37'; c.fill(); c.strokeStyle=INK; c.lineWidth=lw; c.stroke(); }
   rrect(x0,shelfY,x1-x0,th,3); c.fillStyle='#c98a4f'; c.fill(); c.strokeStyle=INK; c.lineWidth=lw; c.stroke();
@@ -771,7 +805,7 @@ cv.addEventListener('pointerdown',e=>{
 });
 addEventListener('keydown',e=>{
   const k=e.key.toLowerCase();
-  if((k===' '||k==='enter')&&document.activeElement===soundBtn) return;
+  if((k===' '||k==='enter')&&document.activeElement&&document.activeElement.classList.contains('btn')) return;
   if(k===' '||k==='enter'||k==='backspace'||k==='delete'||k==='arrowup'||k==='arrowdown'){
     e.preventDefault(); if(e.repeat&&k!==' ') return;
     if(!started){ start(); return; }
@@ -791,6 +825,29 @@ soundBtn.addEventListener('click',()=>{
   if(soundOn) SFX.plop(); else if(SS) SS.cancel();
 });
 document.addEventListener('visibilitychange',()=>{ setMaster(soundOn&&!document.hidden); if(document.hidden&&SS) SS.cancel(); });
+
+// parent toggles: the counting voice, and sums on the boxes (both remembered on this device)
+const SVG='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">';
+const SLASH='<path d="M4 4l16 16" stroke="#d9d2dc" stroke-width="6"/><path d="M4 4l16 16"/>';
+const VOICE_ICON='<path d="M5 4.5h14a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-7l-5 4v-4H5a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2z"/><path d="M7.5 9h9M7.5 12.5h5.5"/>';
+const SUMS_ICON='<path d="M3 12h8M7 8v8M14 12h7" stroke-width="3"/>';
+const voiceBtn=document.getElementById('voice'), sumsBtn=document.getElementById('sums');
+function showToggles(){
+  voiceBtn.innerHTML=SVG+VOICE_ICON+(voiceOn?'':SLASH)+'</svg>';
+  voiceBtn.setAttribute('aria-pressed',voiceOn); voiceBtn.setAttribute('aria-label',voiceOn?'Stem staat aan':'Stem staat uit');
+  sumsBtn.innerHTML=SVG+SUMS_ICON+(sumsOn?'':SLASH)+'</svg>';
+  sumsBtn.setAttribute('aria-pressed',sumsOn); sumsBtn.setAttribute('aria-label',sumsOn?'Sommen staan aan':'Sommen staan uit');
+}
+showToggles();
+voiceBtn.addEventListener('click',()=>{
+  voiceOn=!voiceOn; saveSettings(); showToggles();
+  if(voiceOn) say(phase==='wait'?boxWords(box):'hallo'); else if(SS) SS.cancel();
+});
+sumsBtn.addEventListener('click',()=>{
+  sumsOn=!sumsOn; saveSettings(); showToggles(); SFX.click();
+  // a sum already on the box turns into its answer; the next boxes follow the new setting
+  if(!sumsOn&&box.op){ box.op=''; box.bump=1; if(phase==='wait') say(WORDS[box.n]); }
+});
 
 addEventListener('resize',resize); resize();
 let last=performance.now();
